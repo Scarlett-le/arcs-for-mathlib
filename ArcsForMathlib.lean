@@ -1,1 +1,10 @@
-import ArcsForMathlib.Basic
+import ArcsForMathlib.Auxlemma
+import ArcsForMathlib.Sphere.Arc.Basic
+import ArcsForMathlib.Sphere.Arc.Degenerate
+import ArcsForMathlib.Sphere.Arc.Structure
+import ArcsForMathlib.Sphere.Arc.Measure
+import ArcsForMathlib.Sphere.RadicalAxis
+import ArcsForMathlib.Archive.IncenterArcMidpoint
+import ArcsForMathlib.Archive.ChineseMO_2010P1
+import ArcsForMathlib.Archive.ChineseMO_2012P1
+import ArcsForMathlib.Archive.IncenterArcMidpoint
