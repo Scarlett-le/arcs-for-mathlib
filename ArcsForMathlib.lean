@@ -5,6 +5,6 @@ import ArcsForMathlib.Sphere.Arc.Structure
 import ArcsForMathlib.Sphere.Arc.Measure
 import ArcsForMathlib.Sphere.RadicalAxis
 import ArcsForMathlib.Archive.IncenterArcMidpoint
+import ArcsForMathlib.Archive.BMO1_2018P4
 import ArcsForMathlib.Archive.ChineseMO_2010P1
 import ArcsForMathlib.Archive.ChineseMO_2012P1
-import ArcsForMathlib.Archive.IncenterArcMidpoint
