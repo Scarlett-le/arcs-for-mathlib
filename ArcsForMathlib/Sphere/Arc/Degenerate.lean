@@ -29,6 +29,9 @@ This file defines predicates classifying degenerate arcs on spheres.
   left and right endpoints coincide is either a single point or a full circle.
 * `EuclideanGeometry.Sphere.Arc.mid_eq_pointReflection_center_left_of_isFullCircle`: for a
   full-circle arc, the mid is the reflection of the left endpoint through the center.
+* `EuclideanGeometry.Sphere.Arc.eq_minor_or_eq_major`: in two dimensions, `minor` and `major`
+  exhaust the `Arc` objects with the same non-diametral ordered endpoints, including when those
+  endpoints coincide.
 * `EuclideanGeometry.Sphere.Arc.left_ne_right_iff_not_isDegenerate`: an arc has distinct left and
   right endpoints iff it is not degenerate.
 * `EuclideanGeometry.Sphere.Arc.coe_eq_singleton_of_isSinglePoint`: a single-point arc coerces to
@@ -118,6 +121,28 @@ theorem mid_eq_pointReflection_center_left_of_isFullCircle (a : Arc s) (h : a.Is
         (by simpa using radius_nonneg_of_mem a.mid_mem) a.left_mem hML⟩
   simpa [AffineEquiv.pointReflection_apply_eq_equivPointReflection_apply]
     using hdiam.symm.pointReflection_center_left.symm
+
+/-! ### Minor and major classification -/
+
+/-- In two dimensions, `minor` and `major` exhaust the `Arc` objects with the same non-diametral
+ordered endpoints `A` and `C`. This includes `A = C`, when they are respectively the single-point
+arc and the full circle. -/
+theorem eq_minor_or_eq_major [Fact (Module.finrank ℝ V = 2)]
+    {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hND : ¬s.IsDiameter A C)
+    {a : Arc s} (hl : a.left = A) (hr : a.right = C) :
+    a = minor hA hC hND ∨ a = major hA hC hND := by
+  rcases eq_or_ne A C with rfl | hAC
+  · have hAc : A ≠ s.center := fun h => hND ⟨hA, by rw [midpoint_self, h]⟩
+    have hr0 : s.radius ≠ 0 := fun h =>
+      hAc (dist_eq_zero.mp ((mem_sphere.mp hA).trans h))
+    rcases a.isSinglePoint_or_isFullCircle_of_left_eq_right (hl.trans hr.symm) with hsp | hfc
+    · exact Or.inl (Arc.ext hl (by
+        rw [show a.mid = a.left from hsp, hl]
+        exact (minorMidpoint_self hA hr0).symm))
+    · exact Or.inr (Arc.ext hl (by
+        rw [a.mid_eq_pointReflection_center_left_of_isFullCircle hfc, hl]
+        exact congrArg _ (minorMidpoint_self hA hr0).symm))
+  · exact eq_minor_or_eq_major_of_ne hA hC hND hAC hl hr
 
 /-! ### Point-set semantics -/
 

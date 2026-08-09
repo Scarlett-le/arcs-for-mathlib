@@ -54,6 +54,8 @@ an arc to the complementary arc on the same endpoints, and the four constructors
   `EuclideanGeometry.Sphere.Arc.eq_of_left_eq_of_right_eq_of_sSameSide_mid`: in two dimensions
   the ordered endpoints leave exactly two arcs, and adding a choice of side pins down the `Arc`
   object.
+* `EuclideanGeometry.Sphere.Arc.eq_minor_or_eq_major_of_ne`: in two dimensions, `minor` and
+  `major` exhaust the `Arc` objects with the same distinct non-diametral ordered endpoints.
 * `EuclideanGeometry.Sphere.Arc.mem_through` and
   `EuclideanGeometry.Sphere.Arc.notMem_avoiding`: the defining properties of the last two
   constructors.
@@ -672,6 +674,18 @@ lemma minor_opposite_eq_major {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hNotDiam 
 lemma major_opposite_eq_minor {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hNotDiam : ¬s.IsDiameter A C) :
     (major hA hC hNotDiam).opposite = minor hA hC hNotDiam := by
   simp only [major, opposite_opposite]
+
+/-- In two dimensions, `minor` and `major` exhaust the arcs with distinct ordered endpoints
+`A` and `C`: no third arc has those endpoints. -/
+theorem eq_minor_or_eq_major_of_ne [Fact (Module.finrank ℝ V = 2)]
+    {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hND : ¬s.IsDiameter A C) (hAC : A ≠ C)
+    {a : Arc s} (hl : a.left = A) (hr : a.right = C) :
+    a = minor hA hC hND ∨ a = major hA hC hND := by
+  have h := eq_or_eq_opposite_of_left_eq_of_right_eq
+    (a := minor hA hC hND) (b := a)
+    (by rw [minor_left, hl]) (by rw [minor_right, hr])
+    (by rw [minor_left, minor_right]; exact hAC)
+  rwa [minor_opposite_eq_major] at h
 
 open Classical in
 /-- The mid of the arc from `A` to `C` passing through `B`. When `A ≠ C`, this is
