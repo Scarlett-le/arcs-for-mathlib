@@ -125,9 +125,10 @@ theorem mid_eq_pointReflection_center_left_of_isFullCircle (a : Arc s) (h : a.Is
 theorem interior_eq_empty_of_isSinglePoint (a : Arc s) (h : a.IsSinglePoint) :
     a.interior = ∅ := by
   ext p
-  simp only [interior, Set.mem_setOf_eq, Set.mem_empty_iff_false, iff_false]
-  rintro ⟨_, hss⟩
-  exact hss.2.1 (by rw [h]; exact left_mem_lineOrOrthRadius)
+  rw [Set.mem_empty_iff_false, iff_false]
+  intro hp
+  exact (sSameSide_of_mem_interior hp).left_notMem
+    (by rw [h]; exact left_mem_lineOrOrthRadius)
 
 /-- A single-point arc contains exactly its coincident endpoint. -/
 theorem coe_eq_singleton_of_isSinglePoint (a : Arc s) (h : a.IsSinglePoint) :

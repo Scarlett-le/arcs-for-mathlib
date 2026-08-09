@@ -487,7 +487,7 @@ theorem D_ne_B : cfg.D ≠ cfg.B := by
 /-- The arc midpoint `D` is not on the chord line `AB`. -/
 theorem D_not_mem_line_AB : cfg.D ∉ line[ℝ, cfg.A, cfg.B] := by
   rw [← Sphere.lineOrOrthRadius_of_ne (s := cfg.ω) cfg.A_ne_B]
-  exact Sphere.not_mem_lineOrOrthRadius_of_mem_sphere cfg.A_mem_ω cfg.D_mem_ω'
+  exact Sphere.notMem_lineOrOrthRadius_of_mem_sphere cfg.A_mem_ω cfg.D_mem_ω'
     cfg.B_mem_ω cfg.D_ne_A cfg.D_ne_B
 
 /-- The maximality of `∠A` keeps the arc-midpoint `E` away from the endpoint `C`. -/
@@ -528,11 +528,10 @@ theorem E_mem_arcACB_interior : cfg.E ∈ cfg.arcACB.interior := by
   have hmem : cfg.E ∈ cfg.arcACB := by
     rw [cfg.E_eq]
     exact Sphere.Arc.midpoint_mem_arc cfg.arcACB cfg.arcACB_not_isDegenerate
-  refine Sphere.Arc.mem_interior_of_mem_of_ne_endpoints_of_left_ne_right
-    cfg.arcACB hmem ?_ ?_ ?_
+  refine Sphere.Arc.mem_interior_of_mem_of_ne_left_of_ne_right
+    hmem ?_ ?_
   · simpa using cfg.E_ne_A
   · simpa using cfg.E_ne_B
-  · simpa using cfg.A_ne_B
 
 /-- The specified point `A` is in the interior of the arc opposite `arcBC`. -/
 theorem A_mem_arcBC_opposite_interior : cfg.A ∈ cfg.arcBC.opposite.interior := by
@@ -543,19 +542,17 @@ theorem A_mem_arcBC_opposite_interior : cfg.A ∈ cfg.arcBC.opposite.interior :=
 
 /-- The midpoint `D` is an interior point of the arc `BC` not containing `A`. -/
 theorem D_mem_arcBC_interior : cfg.D ∈ cfg.arcBC.interior := by
-  refine Sphere.Arc.mem_interior_of_mem_of_ne_endpoints_of_left_ne_right
-    cfg.arcBC cfg.D_on_arc_BC ?_ ?_ ?_
+  refine Sphere.Arc.mem_interior_of_mem_of_ne_left_of_ne_right
+    cfg.D_on_arc_BC ?_ ?_
   · simpa using cfg.D_ne_B
   · simpa using cfg.D_ne_C
-  · simpa using cfg.B_ne_C
 
 /-- The midpoint `E` is an interior point of the arc `BC` not containing `A`. -/
 theorem E_mem_arcBC_interior : cfg.E ∈ cfg.arcBC.interior := by
-  refine Sphere.Arc.mem_interior_of_mem_of_ne_endpoints_of_left_ne_right
-    cfg.arcBC cfg.E_on_arc_BC ?_ ?_ ?_
+  refine Sphere.Arc.mem_interior_of_mem_of_ne_left_of_ne_right
+    cfg.E_on_arc_BC ?_ ?_
   · simpa using cfg.E_ne_B
   · simpa using cfg.E_ne_C
-  · simpa using cfg.B_ne_C
 
 /-- Points `A` and `D` lie on opposite strict sides of the chord line `BC`. -/
 theorem sOppSide_BC_A_D : (line[ℝ, cfg.B, cfg.C]).SOppSide cfg.A cfg.D := by
@@ -634,11 +631,10 @@ theorem D_mem_arcABC_interior : cfg.D ∈ cfg.arcABC.interior := by
   have hmem : cfg.D ∈ cfg.arcABC := by
     rw [cfg.D_eq]
     exact Sphere.Arc.midpoint_mem_arc cfg.arcABC cfg.arcABC_not_isDegenerate
-  refine Sphere.Arc.mem_interior_of_mem_of_ne_endpoints_of_left_ne_right
-    cfg.arcABC hmem ?_ ?_ ?_
+  refine Sphere.Arc.mem_interior_of_mem_of_ne_left_of_ne_right
+    hmem ?_ ?_
   · simpa using cfg.D_ne_A
   · simpa using cfg.D_ne_C
-  · simpa using cfg.A_ne_C
 
 /-- The point `D` lies on the same strict side of the chord `AC` as `B`. -/
 theorem B_sSameSide_AC_D : (line[ℝ, cfg.A, cfg.C]).SSameSide cfg.B cfg.D := by

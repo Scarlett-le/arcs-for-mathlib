@@ -14,32 +14,68 @@ public import Mathlib.Analysis.InnerProductSpace.Projection.FiniteDimensional
 public import ArcsForMathlib.Auxlemma
 
 /-!
-# Arcs on Spheres
+# Arcs on spheres
 
-This file defines arcs on spheres and proves basic properties.
+An `EuclideanGeometry.Sphere.Arc s` is one of the two arcs cut out of a sphere `s` by a pair of
+points on it. It is represented by a left endpoint together with an anchor `mid` on the sphere:
+the right endpoint is *derived* as the reflection of `left` in the line through `s.center` and
+`mid`, and membership is decided by the side of the chord on which `mid` lies. This file sets up
+that representation together with its membership and interior predicates, the involution sending
+an arc to the complementary arc on the same endpoints, and the four constructors `minor`,
+`major`, `through` and `avoiding`.
 
 ## Main definitions
 
-* `EuclideanGeometry.Sphere.Arc`: An arc on a sphere, defined by a left endpoint and a mid.
-* `EuclideanGeometry.Sphere.Arc.opposite`: The opposite arc sharing the same endpoints.
-* `EuclideanGeometry.Sphere.Arc.minor`: The minor arc between two non-diametrically-opposite points.
-* `EuclideanGeometry.Sphere.Arc.major`: The major arc between two non-diametrically-opposite points.
-* `EuclideanGeometry.Sphere.Arc.through`: The arc from `A` to `C` passing through `B`.
-* `EuclideanGeometry.Sphere.Arc.avoiding`: The arc from `A` to `C` not passing through `B`.
+* `EuclideanGeometry.Sphere.Arc`: an arc on a sphere, given by a left endpoint and an anchor
+  `mid`, both on the sphere.
+* `EuclideanGeometry.Sphere.Arc.right`: the derived right endpoint.
+* `EuclideanGeometry.Sphere.Arc.interior`: the arc with its two endpoints removed.
+* `EuclideanGeometry.Sphere.Arc.opposite`: the complementary arc on the same endpoints.
+* `EuclideanGeometry.Sphere.Arc.minor` / `major`: the two arcs determined by a non-diametral
+  pair of points on the sphere.
+* `EuclideanGeometry.Sphere.Arc.through` / `avoiding`: the arc from `A` to `C` that does,
+  respectively does not, contain `B`.
 
 ## Main results
 
-* `EuclideanGeometry.Sphere.Arc.sSameSide_opposite_mid_iff`: In two dimensions, the opposite
-  arc's mid lies strictly on the same side of the chord as `s.center` iff `a.mid` does not.
-* `EuclideanGeometry.Sphere.Arc.sOppSide_mid_opposite_mid`: In two dimensions, an arc's mid
-  and the opposite arc's mid lie on strictly opposite sides of the chord.
-* `EuclideanGeometry.Sphere.Arc.mid_not_mem_lineOrOrthRadius`: the mid of an arc with distinct
-  endpoints does not lie on `lineOrOrthRadius`.
-* `EuclideanGeometry.Sphere.Arc.minor_right` / `major_right` / `through_right` / `avoiding_right`:
-  the right endpoint of each construction is `C`.
-* `EuclideanGeometry.Sphere.Arc.mem_through`: the second point `B` lies in the `through` arc.
-* `EuclideanGeometry.Sphere.Arc.not_mem_avoiding`: when `A ≠ C`, the second point `B` does not
-  lie in the `avoiding` arc.
+* `EuclideanGeometry.Sphere.Arc.mem_iff_wSameSide`: for an arc with distinct endpoints,
+  membership is weak same-sidedness with `mid`, replacing the disjunctive definition by a single
+  convex-geometry condition.
+* `EuclideanGeometry.Sphere.Arc.coe_eq_interior_union_endpoints`: an arc, as a point set, is its
+  interior together with its endpoints, including when those endpoints coincide.
+* `EuclideanGeometry.Sphere.Arc.minor_right`, `major_right`, `through_right`, `avoiding_right`:
+  each constructor has `C` as its right endpoint, which is what makes the derived-endpoint
+  representation usable.
+* `EuclideanGeometry.Sphere.Arc.sOppSide_mid_opposite_mid` and
+  `EuclideanGeometry.Sphere.Arc.sSameSide_opposite_mid_iff`: in two dimensions the anchors of an
+  arc and of its opposite lie strictly on opposite sides of the chord, and exactly one of them
+  lies on the same side as `s.center`.
+* `EuclideanGeometry.Sphere.Arc.eq_or_eq_opposite_of_left_eq_of_right_eq` and
+  `EuclideanGeometry.Sphere.Arc.eq_of_left_eq_of_right_eq_of_sSameSide_mid`: in two dimensions
+  the ordered endpoints leave exactly two arcs, and adding a choice of side pins down the `Arc`
+  object.
+* `EuclideanGeometry.Sphere.Arc.mem_through` and
+  `EuclideanGeometry.Sphere.Arc.notMem_avoiding`: the defining properties of the last two
+  constructors.
+* `EuclideanGeometry.Sphere.Arc.through_self_eq_major_self`: when the endpoints coincide,
+  `through A B A` is the full circle `major A A`, independently of which `B` selects it.
+
+## Implementation notes
+
+An arc is stored as an endpoint together with an anchor `mid` on the sphere, with `right` derived
+as a reflection, rather than as two endpoints and a choice of side. This makes `right_mem`
+automatic, and when the endpoints coincide it turns the difference between a single-point arc and
+a full circle into a property of `mid` rather than an extra field.
+
+Membership is stated disjunctively — being an endpoint, or lying strictly on the same side of
+`s.lineOrOrthRadius a.left a.right` as `mid` — and the separating subspace is `lineOrOrthRadius`
+rather than the chord. Both choices are forced by the case `left = right`, where the chord
+degenerates to a point and weak same-sidedness would admit every point of the sphere. For arcs
+with distinct endpoints the simpler form is `mem_iff_wSameSide`.
+
+The structure fields `left_mem` and `mid_mem` assert membership in the sphere; membership in the
+arc is `left_mem_arc`, `right_mem_arc` and `mid_mem_arc`. `Arc.interior` is the arc minus its
+endpoints, and is unrelated to the topological interior of the coerced set.
 -/
 
 @[expose] public section
@@ -57,7 +93,12 @@ noncomputable section
 
 /-- An arc on a sphere, defined by a left endpoint and a mid on the sphere.
 The right endpoint is computed as the reflection of the left endpoint across the line through the
-center and mid. -/
+center and mid.
+
+Note that the coercion to `Set P` is not injective: reversing the named endpoints of a `minor`
+arc with distinct endpoints preserves its point set but changes `left`. The correct object-level
+uniqueness statement is `eq_of_left_eq_of_right_eq_of_sSameSide_mid`. -/
+@[ext]
 structure Arc (s : Sphere P) where
   /-- The left endpoint of the arc. -/
   left : P
@@ -123,12 +164,31 @@ lemma mem_iff {a : Arc s} {p : P} :
       (p = a.left ∨ p = a.right ∨ (s.lineOrOrthRadius a.left a.right).SSameSide a.mid p) :=
   ⟨fun h => ⟨mem_sphere.mpr h.1, h.2⟩, fun h => ⟨mem_sphere.mp h.1, h.2⟩⟩
 
+lemma left_mem_arc (a : Arc s) : a.left ∈ a := mem_iff.mpr ⟨a.left_mem, Or.inl rfl⟩
+
+lemma right_mem_arc (a : Arc s) : a.right ∈ a := mem_iff.mpr ⟨a.right_mem, Or.inr (Or.inl rfl)⟩
+
+lemma mid_mem_arc (a : Arc s) : a.mid ∈ a := by
+  refine mem_iff.mpr ⟨a.mid_mem, ?_⟩
+  by_cases hL : a.mid ∈ s.lineOrOrthRadius a.left a.right
+  · rcases (mem_lineOrOrthRadius_inter_sphere_iff a.left_mem a.right_mem a.mid_mem).mp hL with h | h
+    · exact Or.inl h
+    · exact Or.inr (Or.inl h)
+  · exact Or.inr (Or.inr (AffineSubspace.sSameSide_self_iff.mpr
+      ⟨⟨a.left, left_mem_lineOrOrthRadius⟩, hL⟩))
+
 /-- For an arc with distinct endpoints, the mid does not lie on `lineOrOrthRadius`. -/
-lemma mid_not_mem_lineOrOrthRadius (a : Arc s) (hne : a.left ≠ a.right) :
+lemma mid_notMem_lineOrOrthRadius (a : Arc s) (hne : a.left ≠ a.right) :
     a.mid ∉ s.lineOrOrthRadius a.left a.right :=
-  not_mem_lineOrOrthRadius_of_mem_sphere a.left_mem a.mid_mem a.right_mem
+  notMem_lineOrOrthRadius_of_mem_sphere a.left_mem a.mid_mem a.right_mem
     (fun h => hne (left_eq_right_of_left_eq_mid a h.symm))
     (fun h => hne (left_eq_right_of_mid_eq_right a h))
+
+/-- For an arc with distinct endpoints, the anchor does not lie on the chord. -/
+lemma mid_notMem_line (a : Arc s) (hne : a.left ≠ a.right) :
+    a.mid ∉ line[ℝ, a.left, a.right] := by
+  have h := a.mid_notMem_lineOrOrthRadius hne
+  rwa [lineOrOrthRadius_of_ne hne] at h
 
 /-- For an arc with distinct endpoints, the endpoint-or-strict-side definition of membership is
 equivalent to weak same-sidedness with the mid. -/
@@ -146,11 +206,11 @@ lemma mem_iff_wSameSide {a : Arc s} {p : P} (hne : a.left ≠ a.right) :
     · rcases (mem_lineOrOrthRadius_inter_sphere_iff a.left_mem a.right_mem hp).mp hpL with h | h
       · exact Or.inl h
       · exact Or.inr (Or.inl h)
-    · exact Or.inr (Or.inr ⟨hws, a.mid_not_mem_lineOrOrthRadius hne, hpL⟩)
+    · exact Or.inr (Or.inr ⟨hws, a.mid_notMem_lineOrOrthRadius hne, hpL⟩)
 
 /-- For an arc with distinct endpoints, a point on the sphere that does not lie in the arc is not
 weakly on the same side of the chord as the mid. -/
-lemma not_wSameSide_mid_of_mem_sphere_of_not_mem {a : Arc s} {p : P}
+lemma not_wSameSide_mid_of_mem_sphere_of_notMem {a : Arc s} {p : P}
     (hp : p ∈ s) (hpa : p ∉ a) (hne : a.left ≠ a.right) :
     ¬ (s.lineOrOrthRadius a.left a.right).WSameSide a.mid p :=
   fun hws => hpa ((mem_iff_wSameSide hne).mpr ⟨hp, hws⟩)
@@ -164,37 +224,78 @@ same side of the chord as the mid. -/
 def interior (a : Arc s) : Set P :=
   { p | p ∈ s ∧ (s.lineOrOrthRadius a.left a.right).SSameSide a.mid p }
 
+/-- A point lies in an arc's interior if and only if it lies on the sphere and is strictly on the
+same side of the chord as the arc's mid. -/
+lemma mem_interior_iff {a : Arc s} {p : P} :
+    p ∈ a.interior ↔ p ∈ s ∧ (s.lineOrOrthRadius a.left a.right).SSameSide a.mid p :=
+  Iff.rfl
+
+/-- An interior point of an arc lies on the sphere. -/
+lemma mem_sphere_of_mem_interior {a : Arc s} {p : P} (h : p ∈ a.interior) : p ∈ s :=
+  (mem_interior_iff.mp h).1
+
+/-- An interior point lies strictly on the same side of the chord as the arc's mid. -/
+lemma sSameSide_of_mem_interior {a : Arc s} {p : P} (h : p ∈ a.interior) :
+    (s.lineOrOrthRadius a.left a.right).SSameSide a.mid p :=
+  (mem_interior_iff.mp h).2
+
+/-- A sphere point in an arc that is distinct from both endpoints lies in the arc's interior. -/
+theorem mem_interior_of_mem_of_ne_left_of_ne_right
+    {a : Arc s} {p : P} (hp : p ∈ a) (hpl : p ≠ a.left) (hpr : p ≠ a.right) :
+    p ∈ a.interior := by
+  rcases (mem_iff.mp hp) with ⟨hps, hleft | hright | hss⟩
+  · exact absurd hleft hpl
+  · exact absurd hright hpr
+  · exact mem_interior_iff.mpr ⟨hps, hss⟩
+
+/-- An interior point of an arc lies in the arc. -/
+theorem mem_of_mem_interior {a : Arc s} {p : P} (hp : p ∈ a.interior) : p ∈ a :=
+  mem_iff.mpr ⟨mem_sphere_of_mem_interior hp, Or.inr (Or.inr (sSameSide_of_mem_interior hp))⟩
+
+/-- An arc's interior is contained in the arc. -/
+theorem interior_subset (a : Arc s) : a.interior ⊆ (a : Set P) := fun _ => mem_of_mem_interior
+
+/-- An interior point of an arc does not lie on its chord or orthogonal radius. -/
+theorem notMem_lineOrOrthRadius_of_mem_interior {a : Arc s} {p : P}
+    (hp : p ∈ a.interior) :
+    p ∉ s.lineOrOrthRadius a.left a.right := (sSameSide_of_mem_interior hp).right_notMem
+
+/-- An interior point of an arc is not the left endpoint. -/
+theorem ne_left_of_mem_interior {a : Arc s} {p : P} (hp : p ∈ a.interior) :
+    p ≠ a.left :=
+  fun h => notMem_lineOrOrthRadius_of_mem_interior hp (h ▸ left_mem_lineOrOrthRadius)
+
+/-- An interior point of an arc is not the right endpoint. -/
+theorem ne_right_of_mem_interior {a : Arc s} {p : P} (hp : p ∈ a.interior) :
+    p ≠ a.right :=
+  fun h => notMem_lineOrOrthRadius_of_mem_interior hp (h ▸ right_mem_lineOrOrthRadius)
+
+/-- A point lies in an arc's interior if and only if it lies in the arc and is distinct from
+both endpoints. -/
+theorem mem_interior_iff_mem_and_ne {a : Arc s} {p : P} :
+    p ∈ a.interior ↔ p ∈ a ∧ p ≠ a.left ∧ p ≠ a.right :=
+  ⟨fun hp => ⟨mem_of_mem_interior hp, ne_left_of_mem_interior hp, ne_right_of_mem_interior hp⟩,
+    fun ⟨hp, hpl, hpr⟩ => mem_interior_of_mem_of_ne_left_of_ne_right hp hpl hpr⟩
+
 /-- An arc, viewed as a set, is exactly its interior together with its two endpoints. -/
 theorem coe_eq_interior_union_endpoints (a : Arc s) :
     (a : Set P) = a.interior ∪ {a.left, a.right} := by
   ext p
-  simp only [mem_iff, interior, Set.mem_setOf_eq, Set.mem_union, Set.mem_insert_iff,
-    Set.mem_singleton_iff]
-  constructor
-  · rintro ⟨hp, hpl | hpr | hss⟩
-    · exact Or.inr (Or.inl hpl)
-    · exact Or.inr (Or.inr hpr)
-    · exact Or.inl ⟨hp, hss⟩
-  · rintro (hss | hpl | hpr)
-    · exact ⟨hss.1, Or.inr (Or.inr hss.2)⟩
-    · exact ⟨hpl ▸ a.left_mem, Or.inl hpl⟩
-    · exact ⟨hpr ▸ a.right_mem, Or.inr (Or.inl hpr)⟩
+  simp only [Set.mem_union, Set.mem_insert_iff, Set.mem_singleton_iff]
+  refine ⟨fun hp => ?_, ?_⟩
+  · rcases eq_or_ne p a.left with rfl | hpl
+    · exact Or.inr (Or.inl rfl)
+    rcases eq_or_ne p a.right with rfl | hpr
+    · exact Or.inr (Or.inr rfl)
+    · exact Or.inl (mem_interior_of_mem_of_ne_left_of_ne_right hp hpl hpr)
+  · rintro (h | rfl | rfl)
+    exacts [mem_of_mem_interior h, a.left_mem_arc, a.right_mem_arc]
 
-lemma mid_mem_arc (a : Arc s) : a.mid ∈ a := by
-  refine mem_iff.mpr ⟨a.mid_mem, ?_⟩
-  by_cases hml : a.mid = a.left
-  · exact Or.inl hml
-  by_cases hmr : a.mid = a.right
-  · exact Or.inr (Or.inl hmr)
-  · exact Or.inr (Or.inr (AffineSubspace.sSameSide_self_iff.mpr
-      ⟨⟨a.left, left_mem_lineOrOrthRadius⟩,
-        not_mem_lineOrOrthRadius_of_mem_sphere a.left_mem a.mid_mem a.right_mem hml hmr⟩))
-
-lemma left_mem_arc (a : Arc s) : a.left ∈ a := by
-  exact mem_iff.mpr ⟨a.left_mem, Or.inl rfl⟩
-
-lemma right_mem_arc (a : Arc s) : a.right ∈ a := by
-  exact mem_iff.mpr ⟨a.right_mem, Or.inr (Or.inl rfl)⟩
+/-- The mid point of an arc with distinct endpoints lies in its interior. -/
+theorem mid_mem_interior (a : Arc s) (hne : a.left ≠ a.right) :
+    a.mid ∈ a.interior :=
+  mem_interior_iff.mpr ⟨a.mid_mem, AffineSubspace.sSameSide_self_iff.mpr
+    ⟨⟨a.left, left_mem_lineOrOrthRadius⟩, mid_notMem_lineOrOrthRadius a hne⟩⟩
 
 /-- The opposite arc between the same endpoints, obtained by using the antipodal point
 of the mid (reflection through the center). -/
@@ -225,6 +326,23 @@ lemma opposite_right (a : Arc s) : a.opposite.right = a.right := by
   simp only [right, opposite]
   exact eq_reflection_of_eq_subspace
     (line_center_opposite_mid a) a.left
+
+/-- For an arc with distinct endpoints, the opposite arc's anchor does not lie on the chord. -/
+lemma opposite_mid_notMem_line (a : Arc s) (hne : a.left ≠ a.right) :
+    a.opposite.mid ∉ line[ℝ, a.left, a.right] := by
+  simpa only [opposite_left, opposite_right] using
+    a.opposite.mid_notMem_line (by simpa using hne)
+
+lemma opposite_mid_vsub_center (a : Arc s) :
+    a.opposite.mid -ᵥ s.center = -(a.mid -ᵥ s.center) := by
+  show AffineEquiv.pointReflection ℝ s.center a.mid -ᵥ s.center = _
+  rw [AffineEquiv.pointReflection_apply, vadd_vsub, neg_vsub_eq_vsub_rev]
+
+@[simp]
+lemma midpoint_mid_opposite_mid (a : Arc s) :
+    midpoint ℝ a.mid a.opposite.mid = s.center := by
+  rw [midpoint_eq_iff]
+  rfl
 
 @[simp]
 lemma opposite_opposite (a : Arc s) : a.opposite.opposite = a := by
@@ -263,36 +381,25 @@ lemma inner_mid_vsub_center_right_vsub_left (a : Arc s) :
         (vsub_sub_vsub_cancel_right _ _ _).symm,
       inner_sub_left, h_inner_eq, sub_self]
 
-/-- In two dimensions, for an arc with distinct endpoints, the center, `a.mid`, and
-`a.opposite.mid` all lie on the line through the chord's midpoint orthogonal to the chord,
-parametrized by a scalar `δ` with `|δ| < 1`. In particular, neither `a.mid` nor
-`a.opposite.mid` lies on the chord. -/
-private lemma exists_coord_opposite_mid [Fact (Module.finrank ℝ V = 2)]
+/-- In two dimensions, the midpoint of the chord lies strictly between an arc's anchor and the
+anchor of the opposite arc. -/
+theorem sbtw_mid_midpoint_opposite_mid [Fact (Module.finrank ℝ V = 2)]
     (a : Arc s) (hne : a.left ≠ a.right) :
-    ∃ δ : ℝ, |δ| < 1 ∧
-      a.mid -ᵥ midpoint ℝ a.left a.right = (1 - δ) • (a.mid -ᵥ s.center) ∧
-      a.opposite.mid -ᵥ midpoint ℝ a.left a.right = -(1 + δ) • (a.mid -ᵥ s.center) ∧
-      s.center -ᵥ midpoint ℝ a.left a.right = -δ • (a.mid -ᵥ s.center) ∧
-      a.mid ∉ line[ℝ, a.left, a.right] ∧
-      a.opposite.mid ∉ line[ℝ, a.left, a.right] := by
+    Sbtw ℝ a.mid (midpoint ℝ a.left a.right) a.opposite.mid := by
   set m : V := a.mid -ᵥ s.center with hm_def
   set d : V := a.right -ᵥ a.left with hd_def
   set F : P := midpoint ℝ a.left a.right with hF_def
-  set L : AffineSubspace ℝ P := line[ℝ, a.left, a.right] with hL_def
   have hd_ne : d ≠ 0 := vsub_ne_zero.mpr hne.symm
   have hm_perp_d : ⟪m, d⟫ = 0 := a.inner_mid_vsub_center_right_vsub_left
   have hm_norm : ‖m‖ = s.radius := by
     rw [hm_def]; exact norm_vsub_center_eq_radius a.mid_mem
-  have hL_norm : ‖a.left -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius a.left_mem
-  have hR_norm : ‖a.right -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius a.right_mem
-  have hr_pos : 0 < s.radius := by
-    rcases (Sphere.radius_nonneg_of_mem a.left_mem).lt_or_eq with hr | hr
-    · exact hr
-    · exact absurd (vsub_eq_zero_iff_eq.mp (by rw [← norm_eq_zero, hL_norm, ← hr]) |>.trans
-        (vsub_eq_zero_iff_eq.mp (by rw [← norm_eq_zero, hR_norm, ← hr])).symm) hne
-  have hm_ne : m ≠ 0 := by rw [← norm_ne_zero_iff, hm_norm]; exact hr_pos.ne'
-  have hF_mem : F ∈ L := by
-    rw [hF_def, hL_def]; exact AffineMap.lineMap_mem_affineSpan_pair _ _ _
+  have hr_ne : s.radius ≠ 0 :=
+    radius_ne_zero_of_mem_of_mem_of_ne a.left_mem a.right_mem hne
+  have hr_pos : 0 < s.radius :=
+    lt_of_le_of_ne (Sphere.radius_nonneg_of_mem a.left_mem) (Ne.symm hr_ne)
+  have hm_ne : m ≠ 0 := by rw [← norm_ne_zero_iff, hm_norm]; exact hr_ne
+  have hF_mem : F ∈ line[ℝ, a.left, a.right] := by
+    rw [hF_def]; exact AffineMap.lineMap_mem_affineSpan_pair _ _ _
   have hFc_perp : ⟪F -ᵥ s.center, d⟫ = 0 := by
     rw [hF_def, hd_def, ← neg_vsub_eq_vsub_rev, inner_neg_left,
         Sphere.inner_vsub_center_midpoint_vsub a.left_mem a.right_mem, neg_zero]
@@ -309,44 +416,30 @@ private lemma exists_coord_opposite_mid [Fact (Module.finrank ℝ V = 2)]
       rw [show (s.center -ᵥ F : V) = -(F -ᵥ s.center) from (neg_vsub_eq_vsub_rev _ _).symm,
           norm_neg, ← hδ, norm_smul, Real.norm_eq_abs, hm_norm]
     rw [dist_eq_norm_vsub V, h_norm] at h_dist
-    nlinarith [abs_nonneg δ]
-  have hOM : a.opposite.mid -ᵥ s.center = -m := by
-    change AffineEquiv.pointReflection ℝ s.center a.mid -ᵥ s.center = -m
-    rw [AffineEquiv.pointReflection_apply, vadd_vsub,
-        show (s.center -ᵥ a.mid : V) = -(a.mid -ᵥ s.center) from
-          (neg_vsub_eq_vsub_rev _ _).symm, ← hm_def]
+    exact lt_of_mul_lt_mul_right (by rwa [one_mul]) hr_pos.le
   have ham_sub : a.mid -ᵥ F = (1 - δ) • m := by
     have h1 : (a.mid -ᵥ F : V) = (a.mid -ᵥ s.center) - (F -ᵥ s.center) :=
       (vsub_sub_vsub_cancel_right _ _ _).symm
     rw [h1, ← hm_def, ← hδ]; module
-  have haom_sub : a.opposite.mid -ᵥ F = (-(1 + δ)) • m := by
-    have h1 : (a.opposite.mid -ᵥ F : V) =
-        (a.opposite.mid -ᵥ s.center) - (F -ᵥ s.center) :=
-      (vsub_sub_vsub_cancel_right _ _ _).symm
-    rw [h1, hOM, ← hδ]; module
-  have hc_sub : s.center -ᵥ F = (-δ) • m := by
-    rw [show (s.center -ᵥ F : V) = -(F -ᵥ s.center) from (neg_vsub_eq_vsub_rev _ _).symm,
-        ← hδ, ← neg_smul]
-  have hdir_eq : L.direction = Submodule.span ℝ ({d} : Set V) := by
-    rw [hL_def, direction_affineSpan, vectorSpan_pair, hd_def,
-        ← Submodule.span_neg, Set.neg_singleton, neg_vsub_eq_vsub_rev]
-  have hnot_mem : ∀ c : ℝ, c ≠ 0 → ∀ {Q : P}, Q -ᵥ F = c • m → Q ∉ L := by
-    intro c hc Q hQ hmem
-    have hdir : Q -ᵥ F ∈ L.direction := AffineSubspace.vsub_mem_direction hmem hF_mem
-    rw [hdir_eq, hQ] at hdir
-    have h_orth : c • m ∈ (Submodule.span ℝ ({d} : Set V))ᗮ := by
-      rw [Submodule.mem_orthogonal_singleton_iff_inner_right, inner_smul_right, hd_inner_m]; ring
-    have hzero : (c • m : V) = 0 := by
-      have h_inter : c • m ∈
-          Submodule.span ℝ ({d} : Set V) ⊓ (Submodule.span ℝ ({d} : Set V))ᗮ :=
-        Submodule.mem_inf.mpr ⟨hdir, h_orth⟩
-      rwa [(Submodule.orthogonal_disjoint _).eq_bot, Submodule.mem_bot] at h_inter
-    exact (smul_eq_zero.mp hzero).elim hc (fun h => hm_ne h)
-  have h_mid_not_mem : a.mid ∉ L :=
-    hnot_mem (1 - δ) (by linarith [abs_lt.mp hδ_abs]) ham_sub
-  have h_omid_not_mem : a.opposite.mid ∉ L :=
-    hnot_mem (-(1 + δ)) (by have := abs_lt.mp hδ_abs; linarith) haom_sub
-  exact ⟨δ, hδ_abs, ham_sub, haom_sub, hc_sub, h_mid_not_mem, h_omid_not_mem⟩
+  have hopp_sub : (a.opposite.mid -ᵥ a.mid : V) = (-2 : ℝ) • m := by
+    rw [show (a.opposite.mid -ᵥ a.mid : V) =
+        (a.opposite.mid -ᵥ s.center) - (a.mid -ᵥ s.center) from
+          (vsub_sub_vsub_cancel_right _ _ _).symm,
+      opposite_mid_vsub_center, ← hm_def]
+    module
+  have hF_sub : (F -ᵥ a.mid : V) =
+      ((1 - δ) / 2) • (a.opposite.mid -ᵥ a.mid) := by
+    rw [show (F -ᵥ a.mid : V) = -(a.mid -ᵥ F) from
+          (neg_vsub_eq_vsub_rev _ _).symm,
+      ham_sub, hopp_sub]
+    module
+  have h_mid_not_mem := a.mid_notMem_line hne
+  have h_omid_not_mem := a.opposite_mid_notMem_line hne
+  obtain ⟨hδ_lo, hδ_hi⟩ := abs_lt.mp hδ_abs
+  refine ⟨⟨(1 - δ) / 2, ⟨by linarith, by linarith⟩, ?_⟩, ?_, ?_⟩
+  · rw [AffineMap.lineMap_apply, ← hF_sub, vsub_vadd]
+  · exact fun h => h_mid_not_mem (h ▸ hF_mem)
+  · exact fun h => h_omid_not_mem (h ▸ hF_mem)
 
 /-- In two dimensions, an arc's mid and the opposite arc's mid lie on strictly
 opposite sides of the chord. -/
@@ -354,15 +447,50 @@ theorem sOppSide_mid_opposite_mid [Fact (Module.finrank ℝ V = 2)]
     (a : Arc s) (hne : a.left ≠ a.right) :
     (s.lineOrOrthRadius a.left a.right).SOppSide a.mid a.opposite.mid := by
   rw [lineOrOrthRadius_of_ne hne]
-  obtain ⟨δ, hδ_abs, ham_sub, haom_sub, _, h_mid_not_mem, h_omid_not_mem⟩ :=
-    exists_coord_opposite_mid a hne
-  obtain ⟨hδ_lo, hδ_hi⟩ := abs_lt.mp hδ_abs
   have hF_mem : midpoint ℝ a.left a.right ∈ line[ℝ, a.left, a.right] :=
     AffineMap.lineMap_mem_affineSpan_pair _ _ _
-  refine AffineSubspace.sOppSide_of_vsub_eq_smul hF_mem hF_mem ham_sub haom_sub ?_
-    h_mid_not_mem h_omid_not_mem
-  have hp : (0:ℝ) ≤ (1 - δ) * (1 + δ) := mul_nonneg (by linarith) (by linarith)
-  rw [mul_neg]; linarith
+  exact ⟨(sbtw_mid_midpoint_opposite_mid a hne).wbtw.wOppSide₁₃ hF_mem,
+    a.mid_notMem_line hne, a.opposite_mid_notMem_line hne⟩
+
+/-- In two dimensions, an arc's anchor and the opposite arc's anchor are strictly opposite
+across the chord. -/
+lemma sOppSide_mid_opposite_mid_line [Fact (Module.finrank ℝ V = 2)]
+    (a : Arc s) (hne : a.left ≠ a.right) :
+    line[ℝ, a.left, a.right].SOppSide a.mid a.opposite.mid := by
+  have h := a.sOppSide_mid_opposite_mid hne
+  rwa [lineOrOrthRadius_of_ne hne] at h
+
+/-- In two dimensions, two arcs with the same distinct ordered endpoints are equal or opposite. -/
+theorem eq_or_eq_opposite_of_left_eq_of_right_eq [Fact (Module.finrank ℝ V = 2)]
+    {a b : Arc s} (hl : a.left = b.left) (hr : a.right = b.right)
+    (hne : a.left ≠ a.right) : b = a ∨ b = a.opposite := by
+  have hrad : s.radius ≠ 0 := radius_ne_zero_of_mem_of_mem_of_ne a.left_mem a.right_mem hne
+  obtain ⟨r, hru⟩ := Submodule.mem_span_singleton.mp
+    (Submodule.mem_span_singleton_of_inner_eq_zero_of_inner_eq_zero
+      (vsub_ne_zero.mpr hne.symm)
+      (norm_ne_zero_iff.mp ((norm_vsub_center_eq_radius a.mid_mem).trans_ne hrad))
+      (by rw [real_inner_comm, hl, hr]; exact b.inner_mid_vsub_center_right_vsub_left)
+      (by rw [real_inner_comm]; exact a.inner_mid_vsub_center_right_vsub_left))
+  have hr_abs : |r| = 1 := by
+    have hnorm := congrArg norm hru
+    rw [norm_smul, Real.norm_eq_abs, norm_vsub_center_eq_radius a.mid_mem,
+      norm_vsub_center_eq_radius b.mid_mem] at hnorm
+    exact mul_right_cancel₀ hrad (hnorm.trans (one_mul _).symm)
+  rcases eq_or_eq_neg_of_abs_eq hr_abs with rfl | rfl
+  · exact Or.inl (Arc.ext hl.symm (vsub_left_injective s.center (by simpa using hru.symm)))
+  · exact Or.inr (Arc.ext hl.symm (vsub_left_injective s.center
+      (by simpa [opposite_mid_vsub_center] using hru.symm)))
+
+/-- In two dimensions, two arcs with distinct endpoints, the same ordered endpoints, and mids on the
+same side of their common chord are equal as `Arc` objects. -/
+theorem eq_of_left_eq_of_right_eq_of_sSameSide_mid [Fact (Module.finrank ℝ V = 2)]
+    {a b : Arc s} (hl : a.left = b.left) (hr : a.right = b.right)
+    (hne : a.left ≠ a.right)
+    (hmid : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid b.mid) :
+    a = b := by
+  rcases eq_or_eq_opposite_of_left_eq_of_right_eq hl hr hne with rfl | rfl
+  · rfl
+  · exact absurd hmid (a.sOppSide_mid_opposite_mid hne).not_sSameSide
 
 /-- In two dimensions, `a.opposite.mid` lies strictly on the same side of the
 chord as `s.center` if and only if `a.mid` does not. -/
@@ -372,42 +500,43 @@ theorem sSameSide_opposite_mid_iff [Fact (Module.finrank ℝ V = 2)]
     (s.lineOrOrthRadius a.left a.right).SSameSide a.opposite.mid s.center ↔
       ¬ (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center := by
   rw [lineOrOrthRadius_of_ne hne]
-  obtain ⟨δ, hδ_abs, ham_sub, haom_sub, hc_sub, h_mid_not_mem, h_omid_not_mem⟩ :=
-    exists_coord_opposite_mid a hne
-  set m : V := a.mid -ᵥ s.center with hm_def
   set F : P := midpoint ℝ a.left a.right with hF_def
-  set L : AffineSubspace ℝ P := line[ℝ, a.left, a.right] with hL_def
-  have hF_mem : F ∈ L := AffineMap.lineMap_mem_affineSpan_pair _ _ _
-  have hδ_ne : δ ≠ 0 := by
-    intro h0
-    apply h_center_not_mem
-    have hv : (s.center -ᵥ F : V) = 0 := by rw [hc_sub, h0, neg_zero, zero_smul]
-    exact (vsub_eq_zero_iff_eq.mp hv) ▸ hF_mem
-  have hSOpp : L.SOppSide a.mid a.opposite.mid := by
-    have h := sOppSide_mid_opposite_mid a hne
-    rwa [lineOrOrthRadius_of_ne hne] at h
-  have hSS_mid_of_neg : δ < 0 → L.SSameSide a.mid s.center := fun hδ_neg => by
-    refine AffineSubspace.sSameSide_of_vsub_eq_smul hF_mem hF_mem ham_sub hc_sub ?_
-      h_mid_not_mem h_center_not_mem
-    exact mul_nonneg (by linarith) (by linarith)
-  have hSS_opp_of_pos : δ > 0 → L.SSameSide a.opposite.mid s.center := fun hδ_pos => by
-    refine AffineSubspace.sSameSide_of_vsub_eq_smul hF_mem hF_mem haom_sub hc_sub ?_
-      h_omid_not_mem h_center_not_mem
-    have heq : -(1 + δ) * -δ = (1 + δ) * δ := by ring
-    rw [heq]
-    exact mul_nonneg (by linarith) (by linarith)
-  refine ⟨fun h_opp_ss h_mid_ss => ?_, fun h_not_mid => ?_⟩
-  · exact (hSOpp.trans_sSameSide h_opp_ss).not_wSameSide h_mid_ss.1
-  · rcases lt_or_gt_of_ne hδ_ne with hδ_neg | hδ_pos
-    · exact absurd (hSS_mid_of_neg hδ_neg) h_not_mid
-    · exact hSS_opp_of_pos hδ_pos
+  set u : V := a.opposite.mid -ᵥ a.mid with hu_def
+  have hsbtw : Sbtw ℝ a.mid F a.opposite.mid := by
+    simpa only [hF_def] using sbtw_mid_midpoint_opposite_mid a hne
+  obtain ⟨t, ⟨ht0, ht1⟩, htF⟩ := hsbtw.mem_image_Ioo
+  have hF_mem : F ∈ line[ℝ, a.left, a.right] := by
+    rw [hF_def]; exact AffineMap.lineMap_mem_affineSpan_pair _ _ _
+  have hmid_not_mem := a.mid_notMem_line hne
+  have homid_not_mem := a.opposite_mid_notMem_line hne
+  have hSOpp := a.sOppSide_mid_opposite_mid_line hne
+  have hmid_sub : (a.mid -ᵥ F : V) = (-t) • u := by
+    rw [← htF, AffineMap.lineMap_apply, vsub_vadd_eq_vsub_sub, vsub_self, ← hu_def]
+    module
+  have homid_sub : (a.opposite.mid -ᵥ F : V) = (1 - t) • u := by
+    rw [← htF, AffineMap.lineMap_apply, vsub_vadd_eq_vsub_sub, ← hu_def]
+    module
+  have hcenter_sub : (s.center -ᵥ F : V) = (1 / 2 - t) • u := by
+    rw [← midpoint_mid_opposite_mid a, midpoint_vsub, hmid_sub, homid_sub]
+    rw [invOf_eq_inv, one_div]
+    module
+  have ht_ne : t ≠ 1 / 2 := by
+    rintro ht
+    refine h_center_not_mem ?_
+    have hcF : (s.center -ᵥ F : V) = 0 := by rw [hcenter_sub, ht, sub_self, zero_smul]
+    rw [vsub_eq_zero_iff_eq.mp hcF]; exact hF_mem
+  refine ⟨fun h_opp_ss h_mid_ss => (hSOpp.trans_sSameSide h_opp_ss).not_wSameSide h_mid_ss.1,
+    fun h_not_mid => ?_⟩
+  rcases lt_or_gt_of_ne ht_ne with ht | ht
+  · exact AffineSubspace.sSameSide_of_vsub_eq_smul hF_mem hF_mem homid_sub hcenter_sub
+      (mul_nonneg (by linarith) (by linarith)) homid_not_mem h_center_not_mem
+  · exact absurd (AffineSubspace.sSameSide_of_vsub_eq_smul hF_mem hF_mem hmid_sub hcenter_sub
+      (mul_nonneg_of_nonpos_of_nonpos (by linarith) (by linarith)) hmid_not_mem h_center_not_mem)
+      h_not_mid
 
-/-- The equivalence given by `opposite`, which is an involution on arcs. -/
-def oppositeEquiv : Arc s ≃ Arc s where
-  toFun := opposite
-  invFun := opposite
-  left_inv := opposite_opposite
-  right_inv := opposite_opposite
+/-- Taking the opposite arc is involutive. -/
+theorem opposite_involutive : Function.Involutive (opposite (s := s)) :=
+  opposite_opposite
 
 /-! ### minor and major -/
 
@@ -434,6 +563,22 @@ lemma minorMidpoint_mem {A C : P} (hA : A ∈ s) (hC : C ∈ s)
   have hradius : 0 ≤ s.radius := hC ▸ dist_nonneg
   rw [mem_sphere, minorMidpoint, dist_vadd_left, norm_smul,
     Real.norm_of_nonneg (div_nonneg hradius (norm_nonneg _)), div_mul_cancel₀ _ hv]
+
+/-- The minor-arc midpoint construction is symmetric in its endpoints. -/
+lemma minorMidpoint_comm (s : Sphere P) (A C : P) :
+    minorMidpoint s A C = minorMidpoint s C A := by
+  unfold minorMidpoint
+  rw [add_comm (A -ᵥ s.center) (C -ᵥ s.center)]
+
+/-- On a sphere of nonzero radius, the minor-arc midpoint construction with equal endpoints
+returns that endpoint. -/
+lemma minorMidpoint_self {A : P}
+    (hA : A ∈ s) (hr : s.radius ≠ 0) :
+    minorMidpoint s A A = A := by
+  rw [minorMidpoint, ← two_smul ℝ (A -ᵥ s.center), norm_smul,
+    Real.norm_of_nonneg (by norm_num : (0 : ℝ) ≤ 2),
+    norm_vsub_center_eq_radius hA, smul_smul,
+    show s.radius / (2 * s.radius) * 2 = 1 by field_simp, one_smul, vsub_vadd]
 
 /-- The minor arc from `A` to `C`. The mid is chosen on the shorter arc.
 Requires `A` and `C` are not diametrically opposite (but `A = C` is allowed,
@@ -518,9 +663,6 @@ lemma major_right {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hNotDiam : ¬s.IsDiam
     (major hA hC hNotDiam).right = C := by
   simp only [major, opposite_right, minor_right]
 
-lemma major_eq_minor_opposite {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hNotDiam : ¬s.IsDiameter A C) :
-    major hA hC hNotDiam = (minor hA hC hNotDiam).opposite := rfl
-
 /-- Minor and major arcs are opposite to each other. -/
 @[simp]
 lemma minor_opposite_eq_major {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hNotDiam : ¬s.IsDiameter A C) :
@@ -547,7 +689,7 @@ open Classical in
 lemma throughMidpoint_mem {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
     (hBA : B ≠ A) (hBC : B ≠ C) :
     throughMidpoint s A B C ∈ s := by
-  have hB_not_mem := not_mem_lineOrOrthRadius_of_mem_sphere hA hB hC hBA hBC
+  have hB_not_mem := notMem_lineOrOrthRadius_of_mem_sphere hA hB hC hBA hBC
   simp only [mem_sphere, throughMidpoint]
   split_ifs with hAC <;> (
     rw [dist_vadd_left, norm_smul,
@@ -604,7 +746,7 @@ lemma through_right [Fact (Module.finrank ℝ V = 2)] {A B C : P}
       exact hBA ((dist_eq_zero.mp (by linarith [mem_sphere.mp hB])).trans hAc.symm)
     have ht_ne : t ≠ 0 := by
       intro ht
-      have := not_mem_lineOrOrthRadius_of_mem_sphere hA hB hA hBA hBA
+      have := notMem_lineOrOrthRadius_of_mem_sphere hA hB hA hBA hBA
       simp only [lineOrOrthRadius_of_eq] at this
       exact this (mem_orthRadius_iff_inner_left.mpr
         (by rwa [div_eq_zero_iff, inner_self_eq_zero, or_iff_left hrv_ne] at ht))
@@ -624,7 +766,7 @@ lemma through_right [Fact (Module.finrank ℝ V = 2)] {A B C : P}
     set M := _root_.midpoint ℝ A C with hM_def
     have hd_ne : d ≠ 0 := vsub_ne_zero.mpr (Ne.symm hAC)
     have hw_ne : w ≠ 0 := by
-      intro heq; exact (not_mem_lineOrOrthRadius_of_mem_sphere hA hB hC hBA hBC)
+      intro heq; exact (notMem_lineOrOrthRadius_of_mem_sphere hA hB hC hBA hBC)
         (lineOrOrthRadius_of_ne hAC ▸ by
           rw [show B = (⟪B -ᵥ A, d⟫ / ⟪d, d⟫) • d +ᵥ A from
             by rw [← sub_eq_zero.mp heq, vsub_vadd]]
@@ -695,16 +837,26 @@ lemma throughMidpoint_eq_antipodal_of_eq {A B : P}
   rw [smul_smul, norm_smul, Real.norm_eq_abs, abs_of_neg ht_neg, hrn,
       show s.radius / (-t * s.radius) * t = (-1 : ℝ) from by field_simp, neg_one_smul]
 
+/-- When the endpoints coincide, `through A B A` is the corresponding major arc, independently
+of which point `B` is used to select it. -/
+theorem through_self_eq_major_self {A B : P} (hA : A ∈ s) (hB : B ∈ s) (hBA : B ≠ A)
+    (hNotDiam : ¬s.IsDiameter A A) :
+    through hA hB hA hBA hBA = major hA hA hNotDiam := by
+  refine Arc.ext rfl ?_
+  change throughMidpoint s A B A = AffineEquiv.pointReflection ℝ s.center (minorMidpoint s A A)
+  rw [throughMidpoint_eq_antipodal_of_eq hA hB hBA,
+    minorMidpoint_self hA (radius_ne_zero_of_mem_of_mem_of_ne hA hB hBA.symm)]
+
 /-- The specified second point lies in the interior of the `through` arc. -/
 lemma mem_interior_through [Fact (Module.finrank ℝ V = 2)] {A B C : P}
     (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
     (hBA : B ≠ A) (hBC : B ≠ C) :
     B ∈ (through hA hB hC hBA hBC).interior := by
-  refine ⟨hB, ?_⟩
+  refine mem_interior_iff.mpr ⟨hB, ?_⟩
   change (s.lineOrOrthRadius A (through hA hB hC hBA hBC).right).SSameSide
     (throughMidpoint s A B C) B
   rw [through_right hA hB hC hBA hBC]
-  have hB_not := not_mem_lineOrOrthRadius_of_mem_sphere hA hB hC hBA hBC
+  have hB_not := notMem_lineOrOrthRadius_of_mem_sphere hA hB hC hBA hBC
   by_cases hAC : A = C
   · subst hAC
     rw [lineOrOrthRadius_of_eq rfl, throughMidpoint_eq_antipodal_of_eq hA hB hBA]
@@ -792,7 +944,7 @@ lemma mem_interior_through [Fact (Module.finrank ℝ V = 2)] {A B C : P}
 lemma mem_through [Fact (Module.finrank ℝ V = 2)] {A B C : P}
     (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
     (hBA : B ≠ A) (hBC : B ≠ C) : B ∈ through hA hB hC hBA hBC :=
-  mem_iff.mpr ⟨hB, Or.inr (Or.inr (mem_interior_through hA hB hC hBA hBC).2)⟩
+  mem_of_mem_interior (mem_interior_through hA hB hC hBA hBC)
 
 /-- The arc on `s` from `A` to `C` not passing through `B`. -/
 def avoiding {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
@@ -816,21 +968,22 @@ lemma avoiding_right [Fact (Module.finrank ℝ V = 2)] {A B C : P}
   simp [avoiding, opposite_right, through_right]
 
 /-- The specified second point does not lie in the `avoiding` arc when `A ≠ C`. -/
-lemma not_mem_avoiding [Fact (Module.finrank ℝ V = 2)] {A B C : P}
+lemma notMem_avoiding [Fact (Module.finrank ℝ V = 2)] {A B C : P}
     (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s) (hBA : B ≠ A) (hBC : B ≠ C)
     (hAC : A ≠ C) :
     B ∉ avoiding hA hB hC hBA hBC := by
-  rintro ⟨_, hA' | hC' | hss⟩
+  intro hmem
+  rcases mem_iff.mp hmem with ⟨_, hA' | hC' | hss⟩
   · exact hBA (by simpa using hA')
   · exact hBC (by simpa using hC')
   have hne : (through hA hB hC hBA hBC).left ≠ (through hA hB hC hBA hBC).right := by
     simp only [through_left, through_right hA hB hC hBA hBC]
     exact hAC
-  have h_opp := sOppSide_mid_opposite_mid (through hA hB hC hBA hBC) hne
-  have h_ss := (mem_interior_through hA hB hC hBA hBC).2
+  have h_opp := sOppSide_mid_opposite_mid_line (through hA hB hC hBA hBC) hne
+  have h_ss := sSameSide_of_mem_interior (mem_interior_through hA hB hC hBA hBC)
   simp only [avoiding_left, avoiding_right hA hB hC hBA hBC,
              through_left, through_right hA hB hC hBA hBC] at hss h_ss h_opp
-  rw [lineOrOrthRadius_of_ne hAC] at hss h_ss h_opp
+  rw [lineOrOrthRadius_of_ne hAC] at hss h_ss
   exact (h_opp.symm.trans_sSameSide h_ss).not_wSameSide hss.wSameSide
 
 @[simp]
@@ -843,10 +996,6 @@ lemma avoiding_opposite {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
     (hBA : B ≠ A) (hBC : B ≠ C) :
     (avoiding hA hB hC hBA hBC).opposite = through hA hB hC hBA hBC := by
   simp only [avoiding, opposite_opposite]
-
-lemma avoiding_eq_through_opposite {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
-    (hBA : B ≠ A) (hBC : B ≠ C) :
-    avoiding hA hB hC hBA hBC = (through hA hB hC hBA hBC).opposite := rfl
 
 end Arc
 

@@ -611,7 +611,7 @@ theorem C_mem_arcACB_Γ₁_interior : cfg.C ∈ cfg.arcACB_Γ₁.interior := by
 
 omit [Fact (finrank ℝ V = 2)] in
 theorem E_ne_A : cfg.E ≠ cfg.A :=
-  Sphere.Arc.ne_left_of_mem_interior cfg.arcACB_Γ₁ cfg.E_mem_arcACB_Γ₁
+  Sphere.Arc.ne_left_of_mem_interior cfg.E_mem_arcACB_Γ₁
 
 theorem sSameSide_AB_C_E :
     (line[ℝ, cfg.A, cfg.B] : AffineSubspace ℝ Pt).SSameSide cfg.C cfg.E := by
@@ -645,7 +645,7 @@ theorem sbtw_E_B_F : Sbtw ℝ cfg.E cfg.B cfg.F := by
 
 omit [Fact (finrank ℝ V = 2)] in
 theorem F_ne_A : cfg.F ≠ cfg.A :=
-  Sphere.Arc.ne_left_of_mem_interior cfg.arcABD_Γ₂ cfg.F_mem_arcABD_Γ₂
+  Sphere.Arc.ne_left_of_mem_interior cfg.F_mem_arcABD_Γ₂
 
 /-- The seed `E_mem_arcACB_Γ₁` says that the second secant meets `Γ₁` on the same side
 of chord `AB` as `C`.  The derived order `E-B-F` then transfers this to the statement that
@@ -670,8 +670,6 @@ theorem B_mem_arcADF_Γ₂_opposite :
     rw [Ne, EuclideanGeometry.oangle_sign_eq_zero_iff_collinear]
     exact fun hcol => cfg.sSameSide_AB_D_F.left_notMem
       (hcol.mem_affineSpan_of_mem_of_ne (by simp) (by simp) (by simp) cfg.A_ne_B)
-  have hne_ADF : cfg.arcADF_Γ₂.left ≠ cfg.arcADF_Γ₂.right := by
-    simpa [arcADF_Γ₂] using cfg.F_ne_A.symm
   have hB_ne_left : cfg.B ≠ cfg.arcADF_Γ₂.left := by
     simpa [arcADF_Γ₂] using cfg.A_ne_B.symm
   have hB_ne_right : cfg.B ≠ cfg.arcADF_Γ₂.right := by
@@ -692,8 +690,8 @@ theorem B_mem_arcADF_Γ₂_opposite :
   · exfalso
     have hDB : (line[ℝ, cfg.A, cfg.F] : AffineSubspace ℝ Pt).SSameSide cfg.D cfg.B := by
       have hB_int : cfg.B ∈ cfg.arcADF_Γ₂.interior :=
-        Sphere.Arc.mem_interior_of_mem_of_ne_endpoints_of_left_ne_right _ hB_arc
-          hB_ne_left hB_ne_right hne_ADF
+        Sphere.Arc.mem_interior_of_mem_of_ne_left_of_ne_right hB_arc
+          hB_ne_left hB_ne_right
       simpa [lineOrOrthRadius_of_ne cfg.F_ne_A.symm] using
         Sphere.Arc.sSameSide_of_mem_interior_through cfg.A_mem_Γ₂ cfg.D_mem_Γ₂
           cfg.F_mem_Γ₂ cfg.D_ne_A cfg.D_ne_F cfg.D_mem_arcADF_Γ₂_interior hB_int
@@ -712,8 +710,8 @@ theorem B_mem_arcADF_Γ₂_opposite :
         _ = -(∡ cfg.A cfg.F cfg.D).sign := s3.symm
         _ = -(∡ cfg.A cfg.B cfg.D).sign := by rw [hβ]
     exact hABD_ne (SignType.self_eq_neg_iff.mp key)
-  · exact Sphere.Arc.mem_interior_of_mem_of_ne_endpoints_of_left_ne_right _ hB_opp
-      (by simpa using hB_ne_left) (by simpa using hB_ne_right) (by simpa using hne_ADF)
+  · exact Sphere.Arc.mem_interior_of_mem_of_ne_left_of_ne_right hB_opp
+      (by simpa using hB_ne_left) (by simpa using hB_ne_right)
 
 omit [Fact (finrank ℝ V = 2)] in
 /-- Points `A`, `D`, and `C` are noncollinear.  Otherwise `C` and `B` would be the same

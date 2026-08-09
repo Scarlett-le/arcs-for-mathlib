@@ -674,11 +674,11 @@ theorem measure_through_eq_angle_add_angle_of_mem_minor_interior
     rw [inner_add_right, real_inner_self_eq_norm_sq, ha_norm, ← hγ_def]
   set σ : ℝ := ⟪b, v⟫ with hσ_def
   have hMin_ss_B : L.SSameSide (minor hA hC hND).mid B := by
-    have h := hB_minor.2
+    have h := sSameSide_of_mem_interior hB_minor
     simp only [minor_left, minor_right] at h
     exact h
-  have hMin_not_in_L : (minor hA hC hND).mid ∉ L := hMin_ss_B.2.1
-  have hB_not_in_L : B ∉ L := hMin_ss_B.2.2
+  have hMin_not_in_L : (minor hA hC hND).mid ∉ L := hMin_ss_B.left_notMem
+  have hB_not_in_L : B ∉ L := hMin_ss_B.right_notMem
   have hMin_F_sub : (minor hA hC hND).mid -ᵥ F = (ρ - 2⁻¹) • v := by
     have h1 : (minor hA hC hND).mid -ᵥ F =
         ((minor hA hC hND).mid -ᵥ s.center) - (F -ᵥ s.center) :=
@@ -778,7 +778,7 @@ theorem measure_through_eq_angle_add_angle_of_mem_minor_interior
       InnerProductGeometry.angle a b + InnerProductGeometry.angle b c
     exact InnerProductGeometry.angle_eq_angle_add_add_angle_add_of_mem_span hb_ne h_b_in_cone
   have hT_ss_B : L.SSameSide (through hA hB hC hBA hBC).mid B := by
-    have h := (mem_interior_through hA hB hC hBA hBC).2
+    have h := sSameSide_of_mem_interior (mem_interior_through hA hB hC hBA hBC)
     simp only [through_left, through_right hA hB hC hBA hBC] at h
     exact h
   have hMin_not_ss_center :
@@ -815,21 +815,21 @@ theorem angle_eq_measure_sub_angle_of_mem_through_interior [Fact (Module.finrank
   have hr_ne : s.radius ≠ 0 := radius_ne_zero_of_mem_of_mem_of_ne hA hC hAC
   have h_t_B : (s.lineOrOrthRadius A C).SSameSide
       (through hA hB hC hBA hBC).mid B := by
-    have h := (mem_interior_through hA hB hC hBA hBC).2
+    have h := sSameSide_of_mem_interior (mem_interior_through hA hB hC hBA hBC)
     simp only [through_left, through_right hA hB hC hBA hBC] at h
     exact h
   have h_t_Q : (s.lineOrOrthRadius A C).SSameSide
       (through hA hB hC hBA hBC).mid Q := by
-    have h := hQ_in.2
+    have h := sSameSide_of_mem_interior hQ_in
     simp only [through_left, through_right hA hB hC hBA hBC] at h
     exact h
   have h_min_B : (s.lineOrOrthRadius A C).SSameSide
       (minor hA hC hND).mid B := by
-    have h := hB_minor.2
+    have h := sSameSide_of_mem_interior hB_minor
     simp only [minor_left, minor_right] at h
     exact h
   have hQ_minor : Q ∈ (minor hA hC hND).interior := by
-    refine ⟨hQ, ?_⟩
+    refine mem_interior_iff.mpr ⟨hQ, ?_⟩
     simp only [minor_left, minor_right]
     exact (h_min_B.trans h_t_B.symm).trans h_t_Q
   have h_at_Q : (through hA hQ hC hQA hQC).measure =
@@ -853,12 +853,12 @@ theorem angle_eq_measure_sub_angle_of_mem_through_interior [Fact (Module.finrank
     exact h_min_not_ss_center ((h_min_B.trans h_t_B.symm).trans hss)
   have h_t_Q_Q : (s.lineOrOrthRadius A C).SSameSide
       (through hA hQ hC hQA hQC).mid Q := by
-    have h := (mem_interior_through hA hQ hC hQA hQC).2
+    have h := sSameSide_of_mem_interior (mem_interior_through hA hQ hC hQA hQC)
     simp only [through_left, through_right hA hQ hC hQA hQC] at h
     exact h
   have h_min_Q : (s.lineOrOrthRadius A C).SSameSide
       (minor hA hC hND).mid Q := by
-    have h := hQ_minor.2
+    have h := sSameSide_of_mem_interior hQ_minor
     simp only [minor_left, minor_right] at h
     exact h
   have h_through_Q_eq_AOC :
@@ -1294,9 +1294,8 @@ theorem midpoint_ne_right (a : Arc s) (hnd : ¬a.IsDegenerate) : a.midpoint ≠ 
 /-- The measure-bisecting midpoint of a non-degenerate arc lies in its interior. -/
 theorem midpoint_mem_interior (a : Arc s) (hnd : ¬a.IsDegenerate) :
     a.midpoint ∈ a.interior :=
-  mem_interior_of_mem_of_ne_endpoints_of_left_ne_right a
+  mem_interior_of_mem_of_ne_left_of_ne_right
     (midpoint_mem_arc a hnd) (midpoint_ne_left a hnd) (midpoint_ne_right a hnd)
-    ((left_ne_right_iff_not_isDegenerate a).mpr hnd)
 
 /-- The measure-bisecting midpoint of a non-degenerate arc does not lie on the chord (or, in the
 semicircle case, tangent) line `s.lineOrOrthRadius a.left a.right`. -/
@@ -1304,15 +1303,15 @@ theorem midpoint_not_mem_lineOrOrthRadius (a : Arc s) (hnd : ¬a.IsDegenerate) :
     a.midpoint ∉ s.lineOrOrthRadius a.left a.right := by
   have hLR := (left_ne_right_iff_not_isDegenerate a).mpr hnd
   rw [midpoint_eq_mid a hnd]
-  exact mid_not_mem_lineOrOrthRadius a hLR
+  exact mid_notMem_lineOrOrthRadius a hLR
 
 /-- The measure-bisecting midpoint of a non-degenerate arc does not lie on the chord line
 `line[a.left, a.right]` (the non-degenerate specialization of
 `midpoint_not_mem_lineOrOrthRadius`). -/
 theorem midpoint_not_mem_line (a : Arc s) (hnd : ¬a.IsDegenerate) :
     a.midpoint ∉ line[ℝ, a.left, a.right] := by
-  rw [← lineOrOrthRadius_of_ne ((left_ne_right_iff_not_isDegenerate a).mpr hnd)]
-  exact midpoint_not_mem_lineOrOrthRadius a hnd
+  rw [midpoint_eq_mid a hnd]
+  exact a.mid_notMem_line ((left_ne_right_iff_not_isDegenerate a).mpr hnd)
 
 open Classical in
 /-- Each endpoint subtends the central angle `a.measure / 2` to the measure-bisecting midpoint. -/
@@ -1588,7 +1587,8 @@ theorem inscribed_angle_eq_half_measure (a : Arc s)
     ∠ a.left B a.right = a.measure / 2 := by
   haveI : FiniteDimensional ℝ V := .of_fact_finrank_eq_succ 1
   classical
-  obtain ⟨hB_mem, hB_ss⟩ := hB
+  have hB_mem := mem_sphere_of_mem_interior hB
+  have hB_ss := sSameSide_of_mem_interior hB
   rw [opposite_left, opposite_right] at hB_ss
   by_cases hLR : a.left = a.right
   · rcases isSinglePoint_or_isFullCircle_of_left_eq_right a hLR with h_sp | h_fc
@@ -1604,7 +1604,7 @@ theorem inscribed_angle_eq_half_measure (a : Arc s)
         exact AffineEquiv.pointReflection_involutive ℝ s.center a.left
       have h_opp_mid_in : a.opposite.mid ∈ s.lineOrOrthRadius a.left a.right := by
         rw [h_opp_mid_eq]; exact left_mem_lineOrOrthRadius
-      exact hB_ss.2.1 h_opp_mid_in
+      exact hB_ss.left_notMem h_opp_mid_in
   have hr_ne : s.radius ≠ 0 :=
     radius_ne_zero_of_mem_of_mem_of_ne a.left_mem a.right_mem hLR
   have hr_pos : 0 < s.radius := radius_pos_of_mem a.left_mem hr_ne
@@ -1904,8 +1904,8 @@ theorem angle_ge_pi_div_two_of_mem_minor_interior {X Y Z : P}
     (hX : X ∈ s) (hY : Y ∈ s) (hND : ¬ s.IsDiameter X Y)
     (hZ : Z ∈ (minor hX hY hND).interior) :
     π / 2 ≤ ∠ X Z Y := by
-  have hZX : Z ≠ X := by have := ne_left_of_mem_interior _ hZ; rwa [minor_left] at this
-  have hZY : Z ≠ Y := by have := ne_right_of_mem_interior _ hZ; rwa [minor_right] at this
+  have hZX : Z ≠ X := by have := ne_left_of_mem_interior hZ; rwa [minor_left] at this
+  have hZY : Z ≠ Y := by have := ne_right_of_mem_interior hZ; rwa [minor_right] at this
   have hZ_oo : Z ∈ (minor hX hY hND).opposite.opposite.interior := by
     rw [opposite_opposite]; exact hZ
   have hangle : ∠ X Z Y = (minor hX hY hND).opposite.measure / 2 := by
@@ -1924,8 +1924,8 @@ theorem angle_le_pi_div_two_of_mem_major_interior {X Y Z : P}
     (hX : X ∈ s) (hY : Y ∈ s) (hND : ¬ s.IsDiameter X Y)
     (hZ : Z ∈ (major hX hY hND).interior) :
     ∠ X Z Y ≤ π / 2 := by
-  have hZX : Z ≠ X := by have := ne_left_of_mem_interior _ hZ; rwa [major_left] at this
-  have hZY : Z ≠ Y := by have := ne_right_of_mem_interior _ hZ; rwa [major_right] at this
+  have hZX : Z ≠ X := by have := ne_left_of_mem_interior hZ; rwa [major_left] at this
+  have hZY : Z ≠ Y := by have := ne_right_of_mem_interior hZ; rwa [major_right] at this
   have hZ_maj : Z ∈ (minor hX hY hND).opposite.interior := by
     rw [minor_opposite_eq_major]; exact hZ
   have hangle : ∠ X Z Y = (minor hX hY hND).measure / 2 := by
@@ -1941,8 +1941,8 @@ theorem pi_div_two_lt_angle_of_mem_minor_interior {X Y Z : P}
     (hX : X ∈ s) (hY : Y ∈ s) (hND : ¬s.IsDiameter X Y) (hXY : X ≠ Y)
     (hZ : Z ∈ (minor hX hY hND).interior) :
     π / 2 < ∠ X Z Y := by
-  have hZX : Z ≠ X := by simpa only [minor_left] using ne_left_of_mem_interior _ hZ
-  have hZY : Z ≠ Y := by simpa only [minor_right] using ne_right_of_mem_interior _ hZ
+  have hZX : Z ≠ X := by simpa only [minor_left] using ne_left_of_mem_interior hZ
+  have hZY : Z ≠ Y := by simpa only [minor_right] using ne_right_of_mem_interior hZ
   have hangle : ∠ X Z Y = (major hX hY hND).measure / 2 := by
     have h := inscribed_angle_eq_half_measure (major hX hY hND)
       (by rwa [major_opposite_eq_minor])
@@ -1957,8 +1957,8 @@ theorem angle_lt_pi_div_two_of_mem_major_interior {X Y Z : P}
     (hX : X ∈ s) (hY : Y ∈ s) (hND : ¬s.IsDiameter X Y) (hXY : X ≠ Y)
     (hZ : Z ∈ (major hX hY hND).interior) :
     ∠ X Z Y < π / 2 := by
-  have hZX : Z ≠ X := by simpa only [major_left] using ne_left_of_mem_interior _ hZ
-  have hZY : Z ≠ Y := by simpa only [major_right] using ne_right_of_mem_interior _ hZ
+  have hZX : Z ≠ X := by simpa only [major_left] using ne_left_of_mem_interior hZ
+  have hZY : Z ≠ Y := by simpa only [major_right] using ne_right_of_mem_interior hZ
   have hangle : ∠ X Z Y = (minor hX hY hND).measure / 2 := by
     have h := inscribed_angle_eq_half_measure (minor hX hY hND)
       (by rwa [minor_opposite_eq_major])
@@ -1976,7 +1976,7 @@ theorem mem_major_interior_iff_angle_lt_pi_div_two {X Y Z : P}
   refine ⟨angle_lt_pi_div_two_of_mem_major_interior hX hY hND hXY, fun hacute => ?_⟩
   obtain ⟨hZX, hZY⟩ : Z ≠ X ∧ Z ≠ Y := by
     constructor <;> rintro rfl <;> simp at hacute
-  exact (mem_minor_interior_or_mem_major_interior hX hY hND hXY hZ hZX hZY).resolve_left
+  exact (mem_minor_interior_or_mem_major_interior hX hY hND hZ hZX hZY).resolve_left
     fun h => absurd (angle_ge_pi_div_two_of_mem_minor_interior hX hY hND h)
       (not_le.mpr hacute)
 
@@ -1989,7 +1989,7 @@ theorem mem_minor_interior_iff_pi_div_two_lt_angle {X Y Z : P}
   refine ⟨pi_div_two_lt_angle_of_mem_minor_interior hX hY hND hXY, fun hobtuse => ?_⟩
   obtain ⟨hZX, hZY⟩ : Z ≠ X ∧ Z ≠ Y := by
     constructor <;> rintro rfl <;> simp at hobtuse
-  exact (mem_minor_interior_or_mem_major_interior hX hY hND hXY hZ hZX hZY).resolve_right
+  exact (mem_minor_interior_or_mem_major_interior hX hY hND hZ hZX hZY).resolve_right
     fun h => absurd (angle_le_pi_div_two_of_mem_major_interior hX hY hND h)
       (not_le.mpr hobtuse)
 
@@ -2003,7 +2003,7 @@ theorem angle_bisect_of_mem_opposite {X Y C : P}
   letI : Module.Oriented ℝ V (Fin 2) :=
     ⟨Module.Basis.orientation
       (Module.finBasisOfFinrankEq ℝ V (Fact.out : Module.finrank ℝ V = 2))⟩
-  have hCmem : C ∈ s := hC_opp.1
+  have hCmem : C ∈ s := mem_sphere_of_mem_interior hC_opp
   have hnd : ¬ (minor hX hY hND).IsDegenerate := by
     rw [← left_ne_right_iff_not_isDegenerate, minor_left, minor_right]; exact hXY
   have hne : (minor hX hY hND).left ≠ (minor hX hY hND).right := by
@@ -2011,12 +2011,12 @@ theorem angle_bisect_of_mem_opposite {X Y C : P}
   set M := (minor hX hY hND).midpoint with hM_def
   have hMmem : M ∈ s := midpoint_mem _ hnd
   have hCX : C ≠ X := by
-    have := ne_left_of_mem_interior _ hC_opp; rwa [opposite_left, minor_left] at this
+    have := ne_left_of_mem_interior hC_opp; rwa [opposite_left, minor_left] at this
   have hCY : C ≠ Y := by
-    have := ne_right_of_mem_interior _ hC_opp; rwa [opposite_right, minor_right] at this
+    have := ne_right_of_mem_interior hC_opp; rwa [opposite_right, minor_right] at this
   have hM_int : M ∈ (minor hX hY hND).interior :=
-    mem_interior_of_mem_of_ne_endpoints_of_left_ne_right _
-      (midpoint_mem_arc _ hnd) (midpoint_ne_left _ hnd) (midpoint_ne_right _ hnd) hne
+    mem_interior_of_mem_of_ne_left_of_ne_right
+      (midpoint_mem_arc _ hnd) (midpoint_ne_left _ hnd) (midpoint_ne_right _ hnd)
   have hCM : C ≠ M := fun h =>
     Set.disjoint_left.mp (interior_disjoint_opposite _ hne) hM_int (h ▸ hC_opp)
   have hXCY_eq : ∠ X C Y = (minor hX hY hND).measure / 2 := by
@@ -2074,7 +2074,7 @@ theorem angle_add_angle_opposite_eq_pi (a : Arc s)
     (hB₁l : B₁ ≠ a.left) (hB₁r : B₁ ≠ a.right)
     (hB₂l : B₂ ≠ a.left) (hB₂r : B₂ ≠ a.right) :
     ∠ a.left B₁ a.right + ∠ a.left B₂ a.right = π := by
-  have h_B₁_mem : B₁ ∈ s := h₁.1
+  have h_B₁_mem : B₁ ∈ s := mem_sphere_of_mem_interior h₁
   have hr_ne : s.radius ≠ 0 :=
     radius_ne_zero_of_mem_of_mem_of_ne h_B₁_mem a.left_mem hB₁l
   have h_ang₁ : ∠ a.left B₁ a.right = a.measure / 2 :=

@@ -120,7 +120,7 @@ theorem M_mem_Γ : cfg.M ∈ cfg.Γ :=
 
 /-- `A` is not on the arc `BC` chosen to avoid `A`. -/
 theorem A_not_mem_arcBC : cfg.A ∉ cfg.arcBC :=
-  Sphere.Arc.not_mem_avoiding cfg.B_mem_Γ cfg.A_mem_Γ cfg.C_mem_Γ
+  Sphere.Arc.notMem_avoiding cfg.B_mem_Γ cfg.A_mem_Γ cfg.C_mem_Γ
     cfg.A_ne_B cfg.A_ne_C cfg.B_ne_C
 
 /-- `M` is the structural mid of `arcBC`. -/
@@ -133,7 +133,7 @@ theorem not_wSameSide_M_A : ¬ (line[ℝ, cfg.B, cfg.C]).WSameSide cfg.M cfg.A :
       line[ℝ, cfg.B, cfg.C] := by
     rw [cfg.arcBC_left, cfg.arcBC_right, Sphere.lineOrOrthRadius_of_ne cfg.B_ne_C]
   rw [← hsubeq, cfg.M_eq_arcBC_mid]
-  exact Sphere.Arc.not_wSameSide_mid_of_mem_sphere_of_not_mem cfg.A_mem_Γ cfg.A_not_mem_arcBC
+  exact Sphere.Arc.not_wSameSide_mid_of_mem_sphere_of_notMem cfg.A_mem_Γ cfg.A_not_mem_arcBC
     (by rw [cfg.arcBC_left, cfg.arcBC_right]; exact cfg.B_ne_C)
 
 /-! ### `MB = MC`  (the part where the arc library does the work) -/

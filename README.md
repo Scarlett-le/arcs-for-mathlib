@@ -145,7 +145,7 @@ The four constructors are organized by the involution `opposite`:
 
 The arguments `hA`, `hB`, and `hC` are sphere-membership proofs. `minor_right` and `major_right`
 identify the right endpoint in arbitrary dimension; the current semantic theorems for `through` and
-`avoiding`, including `through_right`, `avoiding_right`, `mem_through`, and `not_mem_avoiding`, use a
+`avoiding`, including `through_right`, `avoiding_right`, `mem_through`, and `notMem_avoiding`, use a
 two-dimensional hypothesis.
 
 ### Measure and bridges

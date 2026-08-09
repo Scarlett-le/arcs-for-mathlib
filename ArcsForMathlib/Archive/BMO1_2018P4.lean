@@ -131,13 +131,13 @@ theorem C_ne_E : cfg.C ≠ cfg.E := fun h => cfg.C_not_mem (h.symm ▸ cfg.E_mem
 
 /-- `E` is an interior point of the arc `BD`, so it is not the endpoint `D`. -/
 theorem E_ne_D : cfg.E ≠ cfg.D := by
-  have h := Arc.ne_right_of_mem_interior _ cfg.E_mem_interior_arc_BD
+  have h := Arc.ne_right_of_mem_interior cfg.E_mem_interior_arc_BD
   rwa [Arc.avoiding_right cfg.B_mem_ω cfg.A_mem_ω cfg.D_mem_ω cfg.A_ne_B cfg.A_ne_D] at h
 
 omit [Fact (finrank ℝ V = 2)] in
 /-- `E` is an interior point of the arc `BD`, so it is not the endpoint `B`. -/
 theorem E_ne_B : cfg.E ≠ cfg.B := by
-  have h := Arc.ne_left_of_mem_interior _ cfg.E_mem_interior_arc_BD
+  have h := Arc.ne_left_of_mem_interior cfg.E_mem_interior_arc_BD
   rwa [Arc.avoiding_left cfg.B_mem_ω cfg.A_mem_ω cfg.D_mem_ω cfg.A_ne_B cfg.A_ne_D] at h
 
 /-- `E` is on the arc from `B` to `D` avoiding `A`, hence it is not `A`. -/
@@ -145,7 +145,7 @@ theorem E_ne_A : cfg.E ≠ cfg.A := by
   intro hEA
   have hA_not :
       cfg.A ∉ Sphere.Arc.avoiding cfg.B_mem_ω cfg.A_mem_ω cfg.D_mem_ω cfg.A_ne_B cfg.A_ne_D :=
-    Sphere.Arc.not_mem_avoiding cfg.B_mem_ω cfg.A_mem_ω cfg.D_mem_ω cfg.A_ne_B cfg.A_ne_D
+    Sphere.Arc.notMem_avoiding cfg.B_mem_ω cfg.A_mem_ω cfg.D_mem_ω cfg.A_ne_B cfg.A_ne_D
       cfg.B_ne_D
   apply hA_not
   refine Arc.mem_iff.mpr ⟨by simpa [hEA] using cfg.E_mem_interior_arc_BD.1,
@@ -405,7 +405,7 @@ omit [Fact (finrank ℝ V = 2)] in
 /-- A non-endpoint point of the diameter circle cannot lie on the diameter line. -/
 theorem D_not_mem_line_AB : cfg.D ∉ line[ℝ, cfg.A, cfg.B] := by
   rw [← lineOrOrthRadius_of_ne (s := cfg.ω) cfg.A_ne_B]
-  exact not_mem_lineOrOrthRadius_of_mem_sphere cfg.A_mem_ω cfg.D_mem cfg.B_mem_ω
+  exact notMem_lineOrOrthRadius_of_mem_sphere cfg.A_mem_ω cfg.D_mem cfg.B_mem_ω
     cfg.A_ne_D.symm cfg.B_ne_D.symm
 
 omit [Fact (finrank ℝ V = 2)] in
@@ -429,7 +429,7 @@ theorem C_not_mem_line_BD : cfg.C ∉ cfg.ω.lineOrOrthRadius cfg.B cfg.D := by
 /-- A non-endpoint point of the diameter circle cannot lie on the diameter line. -/
 theorem E_not_mem_line_AB : cfg.E ∉ line[ℝ, cfg.A, cfg.B] := by
   rw [← lineOrOrthRadius_of_ne (s := cfg.ω) cfg.A_ne_B]
-  exact not_mem_lineOrOrthRadius_of_mem_sphere cfg.A_mem_ω cfg.E_mem cfg.B_mem_ω
+  exact notMem_lineOrOrthRadius_of_mem_sphere cfg.A_mem_ω cfg.E_mem cfg.B_mem_ω
     cfg.E_ne_A cfg.E_ne_B
 
 /-- `A` and `C` lie on the same side of the chord line `BD`. -/
