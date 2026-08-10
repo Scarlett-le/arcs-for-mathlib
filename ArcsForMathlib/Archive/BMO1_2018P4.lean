@@ -146,7 +146,6 @@ theorem E_ne_A : cfg.E ≠ cfg.A := by
   have hA_not :
       cfg.A ∉ Sphere.Arc.avoiding cfg.B_mem_ω cfg.A_mem_ω cfg.D_mem_ω cfg.A_ne_B cfg.A_ne_D :=
     Sphere.Arc.notMem_avoiding cfg.B_mem_ω cfg.A_mem_ω cfg.D_mem_ω cfg.A_ne_B cfg.A_ne_D
-      cfg.B_ne_D
   apply hA_not
   refine Arc.mem_iff.mpr ⟨by simpa [hEA] using cfg.E_mem_interior_arc_BD.1,
     Or.inr (Or.inr ?_)⟩

@@ -34,8 +34,8 @@ This file defines predicates classifying degenerate arcs on spheres.
   endpoints coincide.
 * `EuclideanGeometry.Sphere.Arc.left_ne_right_iff_not_isDegenerate`: an arc has distinct left and
   right endpoints iff it is not degenerate.
-* `EuclideanGeometry.Sphere.Arc.coe_eq_singleton_of_isSinglePoint`: a single-point arc coerces to
-  the singleton containing its endpoint.
+* `EuclideanGeometry.Sphere.Arc.coe_eq_singleton_iff_isSinglePoint`: an arc is a single point iff
+  it coerces to the singleton containing its endpoint.
 * `EuclideanGeometry.Sphere.Arc.coe_eq_sphere_of_isFullCircle`: a full-circle arc coerces to its
   underlying sphere.
 -/
@@ -136,19 +136,11 @@ theorem eq_minor_or_eq_major [Fact (Module.finrank ℝ V = 2)]
 
 /-- The interior of a single-point arc is empty. -/
 theorem interior_eq_empty_of_isSinglePoint (a : Arc s) (h : a.IsSinglePoint) :
-    a.interior = ∅ := by
-  ext p
-  rw [Set.mem_empty_iff_false, iff_false]
-  intro hp
-  exact (sSameSide_of_mem_interior hp).left_notMem
-    (by rw [h]; exact left_mem_lineOrOrthRadius)
+    a.interior = ∅ := interior_eq_empty_of_mid_eq_left a h
 
-/-- A single-point arc contains exactly its coincident endpoint. -/
-theorem coe_eq_singleton_of_isSinglePoint (a : Arc s) (h : a.IsSinglePoint) :
-    (a : Set P) = {a.left} := by
-  rw [coe_eq_interior_union_endpoints, interior_eq_empty_of_isSinglePoint a h,
-    left_eq_right_of_isSinglePoint a h, Set.empty_union]
-  simp only [Set.mem_singleton_iff, Set.insert_eq_of_mem]
+/-- An arc is a single point exactly when it contains only its coincident endpoint. -/
+theorem coe_eq_singleton_iff_isSinglePoint (a : Arc s) :
+    (a : Set P) = {a.left} ↔ a.IsSinglePoint := coe_eq_singleton_iff_mid_eq_left a
 
 /-- A full-circle arc contains every point of its underlying sphere. -/
 theorem coe_eq_sphere_of_isFullCircle (a : Arc s) (h : a.IsFullCircle) :

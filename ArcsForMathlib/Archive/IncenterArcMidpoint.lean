@@ -121,7 +121,7 @@ theorem M_mem_Γ : cfg.M ∈ cfg.Γ :=
 /-- `A` is not on the arc `BC` chosen to avoid `A`. -/
 theorem A_not_mem_arcBC : cfg.A ∉ cfg.arcBC :=
   Sphere.Arc.notMem_avoiding cfg.B_mem_Γ cfg.A_mem_Γ cfg.C_mem_Γ
-    cfg.A_ne_B cfg.A_ne_C cfg.B_ne_C
+    cfg.A_ne_B cfg.A_ne_C
 
 /-- `M` is the structural mid of `arcBC`. -/
 theorem M_eq_arcBC_mid : cfg.M = cfg.arcBC.mid :=

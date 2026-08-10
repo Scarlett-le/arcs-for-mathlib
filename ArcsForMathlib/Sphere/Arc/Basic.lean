@@ -43,6 +43,9 @@ an arc to the complementary arc on the same endpoints, and the four constructors
   convex-geometry condition.
 * `EuclideanGeometry.Sphere.Arc.coe_eq_interior_union_endpoints`: an arc, as a point set, is its
   interior together with its endpoints, including when those endpoints coincide.
+* `EuclideanGeometry.Sphere.Arc.interior_eq_empty_of_mid_eq_left` and
+  `EuclideanGeometry.Sphere.Arc.coe_eq_singleton_iff_mid_eq_left`: the single-point representation
+  has empty interior and is characterized by its singleton point set.
 * `EuclideanGeometry.Sphere.Arc.minor_right`, `major_right`, `through_right`, `avoiding_right`:
   each constructor has `C` as its right endpoint, which is what makes the derived-endpoint
   representation usable.
@@ -56,6 +59,8 @@ an arc to the complementary arc on the same endpoints, and the four constructors
   object.
 * `EuclideanGeometry.Sphere.Arc.eq_minor_or_eq_major_of_ne`: in two dimensions, `minor` and
   `major` exhaust the `Arc` objects with the same distinct non-diametral ordered endpoints.
+* `EuclideanGeometry.Sphere.Arc.minor_ne_major`: under the non-diameter hypothesis, the two
+  branches are distinct `Arc` objects.
 * `EuclideanGeometry.Sphere.Arc.mem_through` and
   `EuclideanGeometry.Sphere.Arc.notMem_avoiding`: the defining properties of the last two
   constructors.
@@ -310,6 +315,24 @@ theorem coe_eq_interior_union_endpoints (a : Arc s) :
     · exact Or.inl (mem_interior_of_mem_of_ne_left_of_ne_right hp hpl hpr)
   · rintro (h | rfl | rfl)
     exacts [mem_of_mem_interior h, a.left_mem_arc, a.right_mem_arc]
+
+/-- An arc whose anchor is its left endpoint has empty interior. -/
+lemma interior_eq_empty_of_mid_eq_left (a : Arc s) (h : a.mid = a.left) :
+    a.interior = ∅ :=
+  Set.eq_empty_of_forall_notMem fun _ hp =>
+    (sSameSide_of_mem_interior hp).left_notMem
+      (by rw [h]; exact left_mem_lineOrOrthRadius)
+
+/-- An arc reduces to its left endpoint exactly when its anchor is that endpoint. -/
+theorem coe_eq_singleton_iff_mid_eq_left (a : Arc s) :
+    (a : Set P) = {a.left} ↔ a.mid = a.left := by
+  refine ⟨fun h => ?_, fun h => ?_⟩
+  · have hm : a.mid ∈ ({a.left} : Set P) := by
+      rw [← h]
+      exact mid_mem_arc a
+    exact Set.mem_singleton_iff.mp hm
+  · rw [coe_eq_interior_union_endpoints, interior_eq_empty_of_mid_eq_left a h,
+      Set.empty_union, ← left_eq_right_of_left_eq_mid a h.symm, Set.pair_eq_singleton]
 
 /-- The mid point of an arc with distinct endpoints lies in its interior. -/
 theorem mid_mem_interior (a : Arc s) (hne : a.left ≠ a.right) :
@@ -693,6 +716,21 @@ lemma major_opposite_eq_minor {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hNotDiam 
     (major hA hC hNotDiam).opposite = minor hA hC hNotDiam := by
   simp only [major, opposite_opposite]
 
+/-- Under the non-diameter hypothesis, the minor and major branches are distinct `Arc` objects. -/
+theorem minor_ne_major {A C : P} (hA : A ∈ s) (hC : C ∈ s)
+    (hNotDiam : ¬s.IsDiameter A C) :
+    minor hA hC hNotDiam ≠ major hA hC hNotDiam := by
+  intro h
+  have hmc : (minor hA hC hNotDiam).mid = s.center := by
+    have hm := midpoint_mid_opposite_mid (minor hA hC hNotDiam)
+    rwa [minor_opposite_eq_major, ← h, midpoint_self] at hm
+  have hr : s.radius = 0 := by
+    rw [← norm_vsub_center_eq_radius (minor hA hC hNotDiam).mid_mem, hmc,
+      vsub_self, norm_zero]
+  exact hNotDiam ⟨hA, by
+    rw [dist_eq_zero.mp ((mem_sphere.mp hA).trans hr),
+      dist_eq_zero.mp ((mem_sphere.mp hC).trans hr), midpoint_self]⟩
+
 /-- In two dimensions, `minor` and `major` exhaust the arcs with distinct ordered endpoints
 `A` and `C`: no third arc has those endpoints. -/
 theorem eq_minor_or_eq_major_of_ne [Fact (Module.finrank ℝ V = 2)]
@@ -999,24 +1037,33 @@ lemma avoiding_right [Fact (Module.finrank ℝ V = 2)] {A B C : P}
     (avoiding hA hB hC hBA hBC).right = C := by
   simp [avoiding, opposite_right, through_right]
 
-/-- The specified second point does not lie in the `avoiding` arc when `A ≠ C`. -/
+/-- The specified second point does not lie in the `avoiding` arc. -/
 lemma notMem_avoiding [Fact (Module.finrank ℝ V = 2)] {A B C : P}
-    (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s) (hBA : B ≠ A) (hBC : B ≠ C)
-    (hAC : A ≠ C) :
+    (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s) (hBA : B ≠ A) (hBC : B ≠ C) :
     B ∉ avoiding hA hB hC hBA hBC := by
   intro hmem
-  rcases mem_iff.mp hmem with ⟨_, hA' | hC' | hss⟩
-  · exact hBA (by simpa using hA')
-  · exact hBC (by simpa using hC')
-  have hne : (through hA hB hC hBA hBC).left ≠ (through hA hB hC hBA hBC).right := by
-    simp only [through_left, through_right hA hB hC hBA hBC]
-    exact hAC
-  have h_opp := sOppSide_mid_opposite_mid_line (through hA hB hC hBA hBC) hne
-  have h_ss := sSameSide_of_mem_interior (mem_interior_through hA hB hC hBA hBC)
-  simp only [avoiding_left, avoiding_right hA hB hC hBA hBC,
-             through_left, through_right hA hB hC hBA hBC] at hss h_ss h_opp
-  rw [lineOrOrthRadius_of_ne hAC] at hss h_ss
-  exact (h_opp.symm.trans_sSameSide h_ss).not_wSameSide hss.wSameSide
+  rcases mem_iff.mp hmem with ⟨_, hleft | hright | hss⟩
+  · exact hBA (by simpa using hleft)
+  · exact hBC (by simpa [avoiding_right hA hB hC hBA hBC] using hright)
+  · by_cases hAC : A = C
+    · subst C
+      have hmid : (avoiding hA hB hC hBA hBC).mid = A := by
+        rw [avoiding_mid, throughMidpoint_eq_antipodal_of_eq hA hB hBA]
+        exact AffineEquiv.pointReflection_involutive ℝ s.center A
+      exact hss.left_notMem (by
+        rw [hmid, avoiding_left]
+        exact left_mem_lineOrOrthRadius)
+    · have hne : (through hA hB hC hBA hBC).left ≠
+          (through hA hB hC hBA hBC).right := by
+        simp only [through_left, through_right hA hB hC hBA hBC]
+        exact hAC
+      have h_opp := sOppSide_mid_opposite_mid_line (through hA hB hC hBA hBC) hne
+      have h_ss := sSameSide_of_mem_interior
+        (mem_interior_through hA hB hC hBA hBC)
+      simp only [avoiding_left, avoiding_right hA hB hC hBA hBC,
+        through_left, through_right hA hB hC hBA hBC] at hss h_ss h_opp
+      rw [lineOrOrthRadius_of_ne hAC] at hss h_ss
+      exact (h_opp.symm.trans_sSameSide h_ss).not_wSameSide hss.wSameSide
 
 @[simp]
 lemma through_opposite {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)

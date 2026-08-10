@@ -23,6 +23,8 @@ with `minor`, with `major`, and with any other arc carrying the same data.
   and the endpoint pair partition the sphere.
 * `EuclideanGeometry.Sphere.Arc.eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior`: the
   ordered endpoints and one shared interior point determine an arc.
+* `EuclideanGeometry.Sphere.Arc.eq_of_left_eq_of_right_eq_of_coe_eq`: the ordered endpoints and
+  the underlying point set determine the same `Arc` object, including coincident endpoints.
 * `EuclideanGeometry.Sphere.Arc.through_eq_of_mem_interior` and
   `EuclideanGeometry.Sphere.Arc.avoiding_eq_of_mem_opposite_interior`: `through` and `avoiding`
   are the arcs on `A`, `C` singled out by the position of `B`.
@@ -39,16 +41,12 @@ with `minor`, with `major`, and with any other arc carrying the same data.
 ## Implementation notes
 
 Most equality results in this file carry no `left ≠ right` hypothesis. When the endpoints
-coincide, an arc with nonempty interior cannot be a single point. The theorem
-`EuclideanGeometry.Sphere.Arc.mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left`
-then forces its mid to the antipode of the endpoint, so a shared interior point still pins the arc
-down. This is what lets `through_eq_of_mem_interior` and everything downstream of it drop the
-assumption `A ≠ C`.
-
-`EuclideanGeometry.Sphere.Arc.eq_of_coe_eq_of_left_eq_of_right_eq` is the exception and does
-assume distinct endpoints: recovering the mid from the point set alone, when the endpoints
-coincide, needs the single-point/full-circle classification of `Arc.Degenerate`, which this file
-deliberately does not import.
+coincide, an arc is either the single-point representation (`mid = left`) or has its mid forced to
+the point reflection of the endpoint through the center. The representation-level lemma
+`EuclideanGeometry.Sphere.Arc.coe_eq_singleton_iff_mid_eq_left` handles the first case directly in
+`Basic`, so `Structure` remains independent of `Arc.Degenerate`. This is what lets both the
+interior-point and point-set uniqueness results cover coincident endpoints without adding an
+import edge.
 -/
 
 @[expose] public section
@@ -231,19 +229,30 @@ theorem eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior
     rw [← hl, ← hr] at hb
     exact (sSameSide_of_mem_interior hpa).trans hb.symm
 
-/-- Two arcs with the same distinct ordered endpoints and the same point set are equal as `Arc`
+/-- Two arcs with the same ordered endpoints and the same point set are equal as `Arc`
 objects. -/
-theorem eq_of_coe_eq_of_left_eq_of_right_eq
+theorem eq_of_left_eq_of_right_eq_of_coe_eq
     {a b : Arc s} (hl : a.left = b.left) (hr : a.right = b.right)
-    (hne : a.left ≠ a.right) (hset : (a : Set P) = (b : Set P)) :
+    (hset : (a : Set P) = (b : Set P)) :
     a = b := by
-  have hmid : a.mid ∈ a.interior := mid_mem_interior a hne
-  refine eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior hl hr hmid ?_
-  exact mem_interior_of_mem_of_ne_left_of_ne_right
-    (show a.mid ∈ (b : Set P) from
-      hset ▸ (show a.mid ∈ (a : Set P) from mid_mem_arc a))
-    (fun h => ne_left_of_mem_interior hmid (h.trans hl.symm))
-    (fun h => ne_right_of_mem_interior hmid (h.trans hr.symm))
+  by_cases hlr : a.left = a.right
+  · -- Inline the degenerate dichotomy to keep this file independent of `Arc.Degenerate`.
+    have hiff : a.mid = a.left ↔ b.mid = b.left := by
+      rw [← coe_eq_singleton_iff_mid_eq_left a, ← coe_eq_singleton_iff_mid_eq_left b,
+        hset, hl]
+    refine Arc.ext hl ?_
+    by_cases hma : a.mid = a.left
+    · rw [hma, hiff.mp hma, hl]
+    · rw [mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left a hlr hma,
+        mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left b
+          (by rw [← hl, ← hr]; exact hlr) (hiff.not.mp hma), hl]
+  · have hmid : a.mid ∈ a.interior := mid_mem_interior a hlr
+    refine eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior hl hr hmid ?_
+    exact mem_interior_of_mem_of_ne_left_of_ne_right
+      (show a.mid ∈ (b : Set P) from
+        hset ▸ (show a.mid ∈ (a : Set P) from mid_mem_arc a))
+      (fun h => ne_left_of_mem_interior hmid (h.trans hl.symm))
+      (fun h => ne_right_of_mem_interior hmid (h.trans hr.symm))
 
 /-! ## Canonicity of `through` and interaction with `minor` / `major` -/
 
