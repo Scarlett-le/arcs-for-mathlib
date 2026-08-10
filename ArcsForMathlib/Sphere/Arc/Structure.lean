@@ -29,15 +29,18 @@ with `minor`, with `major`, and with any other arc carrying the same data.
 * `EuclideanGeometry.Sphere.Arc.through_eq_through_of_sSameSide` and
   `EuclideanGeometry.Sphere.Arc.avoiding_eq_avoiding_of_sSameSide`: the through-point enters only
   through the side of `AC` it lies on.
+* `EuclideanGeometry.Sphere.Arc.through_eq_avoiding_of_sOppSide` and
+  `EuclideanGeometry.Sphere.Arc.avoiding_eq_through_of_sOppSide`: through-points on opposite sides
+  of `AC` select complementary arcs.
 * `EuclideanGeometry.Sphere.Arc.through_eq_minor_of_mem_minor_interior` and
   `EuclideanGeometry.Sphere.Arc.through_eq_major_of_mem_major_interior`: `through` coincides with
   `minor` and with `major` as `Arc` objects, not merely as point sets.
 
 ## Implementation notes
 
-The equality results carry no `left ≠ right` hypothesis. When the endpoints coincide, an arc with
-nonempty interior cannot be a single point. The theorem
-`EuclideanGeometry.Sphere.Arc.mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left`,
+Most equality results in this file carry no `left ≠ right` hypothesis. When the endpoints
+coincide, an arc with nonempty interior cannot be a single point. The theorem
+`EuclideanGeometry.Sphere.Arc.mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left`
 then forces its mid to the antipode of the endpoint, so a shared interior point still pins the arc
 down. This is what lets `through_eq_of_mem_interior` and everything downstream of it drop the
 assumption `A ≠ C`.
@@ -324,6 +327,36 @@ theorem avoiding_eq_avoiding_of_sSameSide
     avoiding hA hB hC hBA hBC = avoiding hA hD hC hDA hDC :=
   congrArg Arc.opposite
     (through_eq_through_of_sSameSide hA hB hC hD hBA hBC hDA hDC hss)
+
+/-! ### Complementary branches -/
+
+/-- Through-points strictly on opposite sides of `AC` select complementary arcs: the arc through
+`B` is the arc avoiding `D`. When `A = C`, no two sphere points can lie strictly on opposite sides
+of `s.lineOrOrthRadius A C`, so the hypothesis rules out that case on its own. -/
+theorem through_eq_avoiding_of_sOppSide
+    {A B C D : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s) (hD : D ∈ s)
+    (hBA : B ≠ A) (hBC : B ≠ C) (hDA : D ≠ A) (hDC : D ≠ C)
+    (hopp : (s.lineOrOrthRadius A C).SOppSide B D) :
+    through hA hB hC hBA hBC = avoiding hA hD hC hDA hDC := by
+  refine through_eq_of_mem_interior hA hB hC hBA hBC
+    (avoiding_left hA hD hC hDA hDC) (avoiding_right hA hD hC hDA hDC) ?_
+  rcases mem_interior_or_mem_opposite_interior (through hA hD hC hDA hDC) hB
+    (by simpa only [through_left] using hBA)
+    (by simpa only [through_right hA hD hC hDA hDC] using hBC) with h | h
+  · exact absurd
+      (sSameSide_of_mem_interior_through hA hD hC hDA hDC h
+        (mem_interior_through hA hD hC hDA hDC))
+      hopp.not_sSameSide
+  · rwa [through_opposite] at h
+
+/-- Through-points strictly on opposite sides of `AC` select complementary arcs: the arc avoiding
+`B` is the arc through `D`. -/
+theorem avoiding_eq_through_of_sOppSide
+    {A B C D : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s) (hD : D ∈ s)
+    (hBA : B ≠ A) (hBC : B ≠ C) (hDA : D ≠ A) (hDC : D ≠ C)
+    (hopp : (s.lineOrOrthRadius A C).SOppSide B D) :
+    avoiding hA hB hC hBA hBC = through hA hD hC hDA hDC :=
+  (through_eq_avoiding_of_sOppSide hA hD hC hB hDA hDC hBA hBC hopp.symm).symm
 
 /-! ### Object-level identification -/
 
