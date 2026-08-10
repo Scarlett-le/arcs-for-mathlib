@@ -385,13 +385,13 @@ theorem P_ne_E : cfg.P ≠ cfg.E := by
 theorem E_not_mem_line_AB : cfg.E ∉ line[ℝ, cfg.A, cfg.B] := by
   rw [cfg.E_eq]
   simpa using
-    Sphere.Arc.midpoint_not_mem_line cfg.arcACB cfg.arcACB_not_isDegenerate
+    Sphere.Arc.midpoint_notMem_line cfg.arcACB cfg.arcACB_not_isDegenerate
 
 /-- The arc midpoint `D` is not on the chord line `AC`. -/
 theorem D_not_mem_line_AC : cfg.D ∉ line[ℝ, cfg.A, cfg.C] := by
   rw [cfg.D_eq]
   simpa using
-    Sphere.Arc.midpoint_not_mem_line cfg.arcABC cfg.arcABC_not_isDegenerate
+    Sphere.Arc.midpoint_notMem_line cfg.arcABC cfg.arcABC_not_isDegenerate
 
 /-- The vertex `C` is not on the tangent line `AD`. -/
 theorem C_not_mem_line_AD : cfg.C ∉ line[ℝ, cfg.A, cfg.D] := by

@@ -331,7 +331,7 @@ theorem collinear_A_incenter_M : Collinear ℝ ({cfg.A, cfg.incenter, cfg.M} : S
   have hsubeq : cfg.Γ.lineOrOrthRadius cfg.arcBC.left cfg.arcBC.right = line[ℝ, B, C] := by
     rw [show cfg.arcBC.left = B from rfl, cfg.arcBC_right, Sphere.lineOrOrthRadius_of_ne hBC]
   have hM_notline : M ∉ line[ℝ, B, C] := by
-    rw [← hsubeq]; exact cfg.arcBC.midpoint_not_mem_lineOrOrthRadius hnd
+    rw [← hsubeq]; exact cfg.arcBC.midpoint_notMem_lineOrOrthRadius hnd
   have hnotws : ¬ (line[ℝ, B, C]).WSameSide M A := by
     simpa only [A, B, C, M] using cfg.not_wSameSide_M_A
   -- `M, M', midpoint BC` are collinear (all inside the 1-dimensional perpendicular bisector)

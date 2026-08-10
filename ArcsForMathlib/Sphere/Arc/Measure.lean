@@ -1299,7 +1299,7 @@ theorem midpoint_mem_interior (a : Arc s) (hnd : ¬a.IsDegenerate) :
 
 /-- The measure-bisecting midpoint of a non-degenerate arc does not lie on the chord (or, in the
 semicircle case, tangent) line `s.lineOrOrthRadius a.left a.right`. -/
-theorem midpoint_not_mem_lineOrOrthRadius (a : Arc s) (hnd : ¬a.IsDegenerate) :
+theorem midpoint_notMem_lineOrOrthRadius (a : Arc s) (hnd : ¬a.IsDegenerate) :
     a.midpoint ∉ s.lineOrOrthRadius a.left a.right := by
   have hLR := (left_ne_right_iff_not_isDegenerate a).mpr hnd
   rw [midpoint_eq_mid a hnd]
@@ -1307,8 +1307,8 @@ theorem midpoint_not_mem_lineOrOrthRadius (a : Arc s) (hnd : ¬a.IsDegenerate) :
 
 /-- The measure-bisecting midpoint of a non-degenerate arc does not lie on the chord line
 `line[a.left, a.right]` (the non-degenerate specialization of
-`midpoint_not_mem_lineOrOrthRadius`). -/
-theorem midpoint_not_mem_line (a : Arc s) (hnd : ¬a.IsDegenerate) :
+`midpoint_notMem_lineOrOrthRadius`). -/
+theorem midpoint_notMem_line (a : Arc s) (hnd : ¬a.IsDegenerate) :
     a.midpoint ∉ line[ℝ, a.left, a.right] := by
   rw [midpoint_eq_mid a hnd]
   exact a.mid_notMem_line ((left_ne_right_iff_not_isDegenerate a).mpr hnd)
