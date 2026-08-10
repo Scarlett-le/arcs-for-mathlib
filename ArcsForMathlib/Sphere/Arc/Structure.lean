@@ -10,38 +10,42 @@ public import ArcsForMathlib.Sphere.Arc.Basic
 /-!
 # Structure of arcs: complementation and canonicity
 
-In two dimensions a chord separates the sphere, and this file develops the two consequences of
-that fact. First, an arc and its opposite cover the sphere and meet exactly at the two endpoints,
-so their interiors partition the sphere minus the endpoints. Second, an arc with distinct
-endpoints is determined by its ordered endpoints together with any one of its interior points;
-this makes `through A B C` canonical and yields object-level identifications of `through` with
-`minor` and `major`.
+In two dimensions a chord separates the sphere. This file draws the two consequences: an arc and
+its opposite complement each other, and an arc is pinned down by its ordered endpoints together
+with a single interior point. The second makes `through A B C` canonical, which identifies it
+with `minor`, with `major`, and with any other arc carrying the same data.
 
 ## Main results
 
-* `EuclideanGeometry.Sphere.Arc.mem_arc_or_mem_opposite` and
-  `EuclideanGeometry.Sphere.Arc.mem_interior_or_mem_opposite_interior`: every point of the sphere
-  lies in an arc or in its opposite, and a point distinct from both endpoints lies in one of the
-  two interiors.
-* `EuclideanGeometry.Sphere.Arc.interior_disjoint_opposite` and
+* `EuclideanGeometry.Sphere.Arc.mem_arc_or_mem_opposite`,
+  `EuclideanGeometry.Sphere.Arc.interior_disjoint_opposite` and
   `EuclideanGeometry.Sphere.Arc.mem_and_mem_opposite_iff_eq_left_or_eq_right`: the two interiors
-  are disjoint, and the two arcs meet exactly at the endpoints.
-* `EuclideanGeometry.Sphere.Arc.eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior` and
-  `EuclideanGeometry.Sphere.Arc.eq_of_coe_eq_of_left_eq_of_right_eq`: distinct ordered endpoints
-  together with one shared interior point — or with equal point sets — determine the same `Arc`
-  object.
-* `EuclideanGeometry.Sphere.Arc.mem_interior_through_iff`: the interior of `through A B C` is
-  exactly the set of sphere points strictly on the same side of `AC` as `B`.
+  and the endpoint pair partition the sphere.
+* `EuclideanGeometry.Sphere.Arc.eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior`: the
+  ordered endpoints and one shared interior point determine an arc.
+* `EuclideanGeometry.Sphere.Arc.through_eq_of_mem_interior` and
+  `EuclideanGeometry.Sphere.Arc.avoiding_eq_of_mem_opposite_interior`: `through` and `avoiding`
+  are the arcs on `A`, `C` singled out by the position of `B`.
+* `EuclideanGeometry.Sphere.Arc.through_eq_through_of_sSameSide` and
+  `EuclideanGeometry.Sphere.Arc.avoiding_eq_avoiding_of_sSameSide`: the through-point enters only
+  through the side of `AC` it lies on.
 * `EuclideanGeometry.Sphere.Arc.through_eq_minor_of_mem_minor_interior` and
   `EuclideanGeometry.Sphere.Arc.through_eq_major_of_mem_major_interior`: `through` coincides with
   `minor` and with `major` as `Arc` objects, not merely as point sets.
 
 ## Implementation notes
 
-`through_eq_minor_of_mem_minor_interior` re-proves, in the special case it needs, that a
-single-point arc has empty interior; the general statement is `interior_eq_empty_of_isSinglePoint`
-in `Arc.Degenerate`. This is deliberate, so that the two files stay independent and can be read in
-either order.
+The equality results carry no `left ≠ right` hypothesis. When the endpoints coincide, an arc with
+nonempty interior cannot be a single point. The theorem
+`EuclideanGeometry.Sphere.Arc.mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left`,
+then forces its mid to the antipode of the endpoint, so a shared interior point still pins the arc
+down. This is what lets `through_eq_of_mem_interior` and everything downstream of it drop the
+assumption `A ≠ C`.
+
+`EuclideanGeometry.Sphere.Arc.eq_of_coe_eq_of_left_eq_of_right_eq` is the exception and does
+assume distinct endpoints: recovering the mid from the point set alone, when the endpoints
+coincide, needs the single-point/full-circle classification of `Arc.Degenerate`, which this file
+deliberately does not import.
 -/
 
 @[expose] public section
@@ -204,16 +208,25 @@ theorem mem_and_mem_opposite_iff_eq_left_or_eq_right
     · exact ⟨left_mem_arc a, left_mem_arc a.opposite⟩
     · exact ⟨right_mem_arc a, by simpa using right_mem_arc a.opposite⟩
 
-/-- Two arcs with the same distinct ordered endpoints sharing an interior point are equal. -/
+/-- Two arcs with the same ordered endpoints sharing an interior point are equal, including when
+the endpoints coincide. -/
 theorem eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior
     {a b : Arc s} {p : P}
-    (hl : a.left = b.left) (hr : a.right = b.right) (hne : a.left ≠ a.right)
-    (hpa : p ∈ a.interior) (hpb : p ∈ b.interior) :
-    a = b := by
-  refine eq_of_left_eq_of_right_eq_of_sSameSide_mid hl hr hne ?_
-  have hb := sSameSide_of_mem_interior hpb
-  rw [← hl, ← hr] at hb
-  exact (sSameSide_of_mem_interior hpa).trans hb.symm
+    (hl : a.left = b.left) (hr : a.right = b.right)
+    (hpa : p ∈ a.interior) (hpb : p ∈ b.interior) : a = b := by
+  by_cases hlr : a.left = a.right
+  · have hbne : b.left = b.right := by rw [← hl, ← hr]; exact hlr
+    have hma : a.mid ≠ a.left := fun h =>
+      (sSameSide_of_mem_interior hpa).left_notMem (h ▸ left_mem_lineOrOrthRadius)
+    have hmb : b.mid ≠ b.left := fun h =>
+      (sSameSide_of_mem_interior hpb).left_notMem (h ▸ left_mem_lineOrOrthRadius)
+    refine Arc.ext hl ?_
+    rw [mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left a hlr hma,
+        mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left b hbne hmb, hl]
+  · refine eq_of_left_eq_of_right_eq_of_sSameSide_mid hl hr hlr ?_
+    have hb := sSameSide_of_mem_interior hpb
+    rw [← hl, ← hr] at hb
+    exact (sSameSide_of_mem_interior hpa).trans hb.symm
 
 /-- Two arcs with the same distinct ordered endpoints and the same point set are equal as `Arc`
 objects. -/
@@ -222,14 +235,14 @@ theorem eq_of_coe_eq_of_left_eq_of_right_eq
     (hne : a.left ≠ a.right) (hset : (a : Set P) = (b : Set P)) :
     a = b := by
   have hmid : a.mid ∈ a.interior := mid_mem_interior a hne
-  refine eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior hl hr hne hmid ?_
+  refine eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior hl hr hmid ?_
   exact mem_interior_of_mem_of_ne_left_of_ne_right
     (show a.mid ∈ (b : Set P) from
       hset ▸ (show a.mid ∈ (a : Set P) from mid_mem_arc a))
     (fun h => ne_left_of_mem_interior hmid (h.trans hl.symm))
     (fun h => ne_right_of_mem_interior hmid (h.trans hr.symm))
 
-/-! ## Interaction between `through` and `minor` / `major` -/
+/-! ## Canonicity of `through` and interaction with `minor` / `major` -/
 
 /-- A sphere point distinct from the endpoints of a non-diametral chord lies in the interior
 of either its minor arc or its major arc. -/
@@ -273,13 +286,44 @@ theorem sSameSide_of_mem_interior_through
 /-- `through A B C` is the unique arc with endpoints `A`, `C` having `B` in its interior. -/
 theorem through_eq_of_mem_interior
     {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s) (hBA : B ≠ A) (hBC : B ≠ C)
-    {b : Arc s} (hbl : b.left = A) (hbr : b.right = C) (hAC : A ≠ C)
-    (hBb : B ∈ b.interior) :
+    {b : Arc s} (hbl : b.left = A) (hbr : b.right = C) (hBb : B ∈ b.interior) :
     through hA hB hC hBA hBC = b :=
   eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior
     (by rw [through_left, hbl]) (by rw [through_right hA hB hC hBA hBC, hbr])
-    (by rw [through_left, through_right hA hB hC hBA hBC]; exact hAC)
     (mem_interior_through hA hB hC hBA hBC) hBb
+
+/-- `avoiding A B C` is the unique arc with endpoints `A`, `C` having `B` in the interior of
+its opposite. -/
+theorem avoiding_eq_of_mem_opposite_interior
+    {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s) (hBA : B ≠ A) (hBC : B ≠ C)
+    {b : Arc s} (hbl : b.left = A) (hbr : b.right = C)
+    (hBb : B ∈ b.opposite.interior) :
+    avoiding hA hB hC hBA hBC = b := by
+  rw [← through_opposite hA hB hC hBA hBC,
+    through_eq_of_mem_interior hA hB hC hBA hBC
+    (by rwa [opposite_left]) (by rwa [opposite_right]) hBb, opposite_opposite]
+
+/-! ### Independence of the through-point -/
+
+/-- Two through-points strictly on the same side of `AC` determine the same `through` arc. This
+also holds when the endpoints coincide. -/
+theorem through_eq_through_of_sSameSide
+    {A B C D : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s) (hD : D ∈ s)
+    (hBA : B ≠ A) (hBC : B ≠ C) (hDA : D ≠ A) (hDC : D ≠ C)
+    (hss : (s.lineOrOrthRadius A C).SSameSide B D) :
+    through hA hB hC hBA hBC = through hA hD hC hDA hDC :=
+  through_eq_of_mem_interior hA hB hC hBA hBC
+    (through_left hA hD hC hDA hDC) (through_right hA hD hC hDA hDC)
+    (mem_interior_through_of_sSameSide hA hD hC hDA hDC hB hss.symm)
+
+/-- Two through-points strictly on the same side of `AC` determine the same `avoiding` arc. -/
+theorem avoiding_eq_avoiding_of_sSameSide
+    {A B C D : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s) (hD : D ∈ s)
+    (hBA : B ≠ A) (hBC : B ≠ C) (hDA : D ≠ A) (hDC : D ≠ C)
+    (hss : (s.lineOrOrthRadius A C).SSameSide B D) :
+    avoiding hA hB hC hBA hBC = avoiding hA hD hC hDA hDC :=
+  congrArg Arc.opposite
+    (through_eq_through_of_sSameSide hA hB hC hD hBA hBC hDA hDC hss)
 
 /-! ### Object-level identification -/
 
@@ -289,17 +333,9 @@ theorem through_eq_minor_of_mem_minor_interior
     {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
     (hBA : B ≠ A) (hBC : B ≠ C) (hNotDiam : ¬s.IsDiameter A C)
     (hB_minor : B ∈ (minor hA hC hNotDiam).interior) :
-    through hA hB hC hBA hBC = minor hA hC hNotDiam := by
-  have hAC : A ≠ C := by
-    rintro rfl
-    refine (sSameSide_of_mem_interior hB_minor).left_notMem ?_
-    have hmid : (minor hA hC hNotDiam).mid = (minor hA hC hNotDiam).left := by
-      rw [minor_left]
-      exact minorMidpoint_self hA (radius_ne_zero_of_mem_of_mem_of_ne hA hB hBA.symm)
-    rw [hmid]
-    exact left_mem_lineOrOrthRadius
-  exact through_eq_of_mem_interior hA hB hC hBA hBC
-    (minor_left hA hC hNotDiam) (minor_right hA hC hNotDiam) hAC hB_minor
+    through hA hB hC hBA hBC = minor hA hC hNotDiam :=
+  through_eq_of_mem_interior hA hB hC hBA hBC
+    (minor_left hA hC hNotDiam) (minor_right hA hC hNotDiam) hB_minor
 
 /-- If `B` lies in the major arc's interior, then `through A B C` is the major arc as an
 `Arc` object. -/
@@ -307,34 +343,9 @@ theorem through_eq_major_of_mem_major_interior
     {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
     (hBA : B ≠ A) (hBC : B ≠ C) (hNotDiam : ¬s.IsDiameter A C)
     (hB_major : B ∈ (major hA hC hNotDiam).interior) :
-    through hA hB hC hBA hBC = major hA hC hNotDiam := by
-  by_cases hAC : A = C
-  · subst C
-    exact through_self_eq_major_self hA hB hBA hNotDiam
-  · exact through_eq_of_mem_interior hA hB hC hBA hBC
-      (major_left hA hC hNotDiam) (major_right hA hC hNotDiam) hAC hB_major
-
-/-! ### Membership-level consequences -/
-
-/-- If `B` lies in the minor arc's interior, then `through A B C` and the minor arc have the
-same points. This is the membership-level consequence of
-`through_eq_minor_of_mem_minor_interior`. -/
-theorem mem_through_iff_mem_minor_of_mem_minor_interior
-    {A B C Q : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
-    (hBA : B ≠ A) (hBC : B ≠ C) (hNotDiam : ¬s.IsDiameter A C)
-    (hB_minor : B ∈ (minor hA hC hNotDiam).interior) :
-    Q ∈ through hA hB hC hBA hBC ↔ Q ∈ minor hA hC hNotDiam := by
-  rw [through_eq_minor_of_mem_minor_interior hA hB hC hBA hBC hNotDiam hB_minor]
-
-/-- If `B` lies in the major arc's interior, then `through A B C` and the major arc have the
-same points. This is the membership-level consequence of
-`through_eq_major_of_mem_major_interior`. -/
-theorem mem_through_iff_mem_major_of_mem_major_interior
-    {A B C Q : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
-    (hBA : B ≠ A) (hBC : B ≠ C) (hNotDiam : ¬s.IsDiameter A C)
-    (hB_major : B ∈ (major hA hC hNotDiam).interior) :
-    Q ∈ through hA hB hC hBA hBC ↔ Q ∈ major hA hC hNotDiam := by
-  rw [through_eq_major_of_mem_major_interior hA hB hC hBA hBC hNotDiam hB_major]
+    through hA hB hC hBA hBC = major hA hC hNotDiam :=
+  through_eq_of_mem_interior hA hB hC hBA hBC
+    (major_left hA hC hNotDiam) (major_right hA hC hNotDiam) hB_major
 
 end Arc
 

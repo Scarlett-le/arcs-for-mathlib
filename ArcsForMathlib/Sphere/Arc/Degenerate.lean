@@ -107,20 +107,8 @@ theorem not_isFullCircle_of_left_ne_right (a : Arc s) :
 
 /-- For a full-circle arc, the mid is the reflection of the left endpoint through the center. -/
 theorem mid_eq_pointReflection_center_left_of_isFullCircle (a : Arc s) (h : a.IsFullCircle) :
-    a.mid = AffineEquiv.pointReflection ℝ s.center a.left := by
-  obtain ⟨hLR, hML⟩ := h
-  have hleft_line : a.left ∈ line[ℝ, s.center, a.mid] :=
-    (left_eq_right_iff_mem_line a).mp hLR
-  have hcol : Collinear ℝ ({a.mid, s.center, a.left} : Set P) := by
-    have h' : Collinear ℝ ({a.left, s.center, a.mid} : Set P) :=
-      collinear_insert_of_mem_affineSpan_pair hleft_line
-    simpa [Set.insert_comm, Set.pair_comm] using h'
-  have hdiam : s.IsDiameter a.mid a.left :=
-    isDiameter_iff_mem_and_mem_and_wbtw.2 ⟨a.mid_mem, a.left_mem,
-      wbtw_of_collinear_of_dist_center_le_radius hcol a.mid_mem
-        (by simpa using radius_nonneg_of_mem a.mid_mem) a.left_mem hML⟩
-  simpa [AffineEquiv.pointReflection_apply_eq_equivPointReflection_apply]
-    using hdiam.symm.pointReflection_center_left.symm
+    a.mid = AffineEquiv.pointReflection ℝ s.center a.left :=
+  mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left a h.1 h.2
 
 /-! ### Minor and major classification -/
 

@@ -151,6 +151,24 @@ lemma left_eq_right_of_mid_eq_right (a : Arc s) (h : a.mid = a.right) :
         (right_mem_affineSpan_pair ℝ s.center a.mid)]
   exact h.symm
 
+/-- An arc whose endpoints coincide, but whose mid is not that endpoint, has the reflection of
+the endpoint through the center as its mid. -/
+theorem mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left (a : Arc s)
+    (hlr : a.left = a.right) (hml : a.mid ≠ a.left) :
+    a.mid = AffineEquiv.pointReflection ℝ s.center a.left := by
+  have hleft_line : a.left ∈ line[ℝ, s.center, a.mid] :=
+    (left_eq_right_iff_mem_line a).mp hlr
+  have hcol : Collinear ℝ ({a.mid, s.center, a.left} : Set P) := by
+    have h' : Collinear ℝ ({a.left, s.center, a.mid} : Set P) :=
+      collinear_insert_of_mem_affineSpan_pair hleft_line
+    simpa [Set.insert_comm, Set.pair_comm] using h'
+  have hdiam : s.IsDiameter a.mid a.left :=
+    isDiameter_iff_mem_and_mem_and_wbtw.2 ⟨a.mid_mem, a.left_mem,
+      wbtw_of_collinear_of_dist_center_le_radius hcol a.mid_mem
+        (by simpa using radius_nonneg_of_mem a.mid_mem) a.left_mem hml⟩
+  simpa [AffineEquiv.pointReflection_apply_eq_equivPointReflection_apply]
+    using hdiam.symm.pointReflection_center_left.symm
+
 /-- A point `p` is in the arc if it lies on the sphere and is an endpoint or lies strictly on the
 same side of `lineOrOrthRadius` as the mid. Thus an arc is its interior together with its
 endpoints, including when those endpoints coincide. -/
