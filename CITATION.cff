@@ -8,6 +8,7 @@ authors:
     orcid: "https://orcid.org/0009-0001-8883-7096"
 version: "1.0.0"
 date-released: "2026-08-16"
+doi: "10.5281/zenodo.21964632"
 repository-code: "https://github.com/Scarlett-le/arcs-for-mathlib"
 license: Apache-2.0
 keywords:
@@ -21,6 +22,3 @@ abstract: >-
   A reusable, first-class arc abstraction (Sphere.Arc) for Mathlib's
   Euclidean-geometry framework, with bridges to Mathlib's oriented-angle
   and sphere APIs and four sorry-free Olympiad case studies.
-
-# Add the Zenodo concept DOI after the first release. It covers all versions.
-# doi: "10.5281/zenodo.XXXXXXX"
