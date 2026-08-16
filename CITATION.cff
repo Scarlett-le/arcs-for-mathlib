@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "arcs-for-mathlib: a first-class arc abstraction for Mathlib's Euclidean geometry"
+type: software
+authors:
+  - given-names: "Jiale"
+    family-names: "Li"
+    orcid: "https://orcid.org/0009-0001-8883-7096"
+version: "1.0.0"
+date-released: "2026-08-16"
+repository-code: "https://github.com/Scarlett-le/arcs-for-mathlib"
+license: Apache-2.0
+keywords:
+  - "Lean 4"
+  - "Mathlib"
+  - "formalized mathematics"
+  - "interactive theorem proving"
+  - "Euclidean geometry"
+  - "arcs"
+abstract: >-
+  A reusable, first-class arc abstraction (Sphere.Arc) for Mathlib's
+  Euclidean-geometry framework, with bridges to Mathlib's oriented-angle
+  and sphere APIs and four sorry-free Olympiad case studies.
+
+# Add the Zenodo concept DOI after the first release. It covers all versions.
+# doi: "10.5281/zenodo.XXXXXXX"
