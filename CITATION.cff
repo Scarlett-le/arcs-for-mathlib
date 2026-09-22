@@ -6,8 +6,7 @@ authors:
   - given-names: "Jiale"
     family-names: "Li"
     orcid: "https://orcid.org/0009-0001-8883-7096"
-version: "1.0.0"
-date-released: "2026-08-16"
+version: "1.1.0"
 doi: "10.5281/zenodo.21964632"
 repository-code: "https://github.com/Scarlett-le/arcs-for-mathlib"
 license: Apache-2.0

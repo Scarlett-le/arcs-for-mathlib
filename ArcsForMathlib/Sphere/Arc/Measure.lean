@@ -10,29 +10,41 @@ public import ArcsForMathlib.Sphere.Arc.Degenerate
 public import Mathlib.Geometry.Euclidean.Angle.Unoriented.TriangleInequality
 
 /-!
-# Arc Measure
+# Arc measure
 
-This file defines the measure of an arc on a sphere and proves basic properties relating it to
-chord length, inscribed angles, and the `minor` / `major` / `through` constructions.
+This file defines the measure and midpoint of an arc on a sphere. It relates arc measure to
+opposite arcs, the minor and major constructors, chord length, and central angles, and proves
+the inscribed angle theorem in two dimensions.
 
 ## Main definitions
 
-* `EuclideanGeometry.Sphere.Arc.measure`: The measure of an arc, a real number in `[0, 2π]`.
-* `EuclideanGeometry.Sphere.Arc.midpoint`: The measure-bisecting midpoint of an arc.
+* `EuclideanGeometry.Sphere.Arc.measure`: the measure of an arc in radians, in `[0, 2π]`.
+* `EuclideanGeometry.Sphere.Arc.midpoint`: the arc midpoint, defined to be the structural anchor.
 
 ## Main results
 
-* `EuclideanGeometry.Sphere.Arc.measure_opposite`: opposite arcs have measures summing to `2π`.
-* `EuclideanGeometry.Sphere.Arc.measure_minor` / `measure_major`: the measure of the minor arc
-  is the central angle, and the measure of the major arc is `2π` minus the central angle.
-* `EuclideanGeometry.Sphere.Arc.measure_through_eq_angle_add_angle_of_mem_minor_interior`:
-  the measure of an arc through an interior point of the minor arc splits as the sum of two
-  central angles.
-* `EuclideanGeometry.Sphere.Arc.dist_eq_of_measure_eq`: equal measure gives equal chord length.
-* `EuclideanGeometry.Sphere.Arc.midpoint_eq_mid`: the measure-bisecting midpoint coincides with
-  the structural mid.
-* `EuclideanGeometry.Sphere.Arc.inscribed_angle_eq_half_measure`: the inscribed angle theorem,
-  stated via arc measure.
+* `EuclideanGeometry.Sphere.Arc.measure_add_measure_opposite`: on a sphere of nonzero radius,
+  the measures of an arc and its opposite sum to `2π`.
+* `EuclideanGeometry.Sphere.Arc.measure_minor`, `EuclideanGeometry.Sphere.Arc.measure_major`:
+  for non-diametral endpoints, the minor arc has measure equal to the central angle, and the
+  major arc has measure `2π` minus that angle.
+* `EuclideanGeometry.Sphere.Arc.sum_vsub_center_eq_two_mul_cos_half_measure_smul`: the sum
+  of the endpoint radius vectors is `2 * Real.cos (a.measure / 2)` times the anchor radius vector.
+* `EuclideanGeometry.Sphere.Arc.dist_left_right_eq_two_mul_radius_mul_sin_measure`: the chord
+  length is `2 * s.radius * Real.sin (a.measure / 2)`.
+* `EuclideanGeometry.Sphere.Arc.angle_center_midpoint_eq_half_measure`: on a sphere of nonzero
+  radius, the central angle from either endpoint to the midpoint equals half the arc measure.
+* `EuclideanGeometry.Sphere.Arc.inscribed_angle_eq_half_measure`: in two dimensions, the angle
+  subtended by the endpoints at a point in the opposite arc's interior equals half the arc measure.
+
+## Implementation notes
+
+Measure is defined using the central angle and the side of the chord containing the anchor.
+On a sphere of radius zero it is defined to be zero. On a sphere of nonzero radius, single-point
+and full-circle arcs have measures `0` and `2π`, respectively.
+
+The midpoint is definitionally equal to `mid`. Its geometric characterization by half the arc
+measure is proved from the endpoint-sum identity, including for single-point and full-circle arcs.
 -/
 
 @[expose] public section
@@ -82,16 +94,12 @@ theorem measure_eq_zero_of_isSinglePoint (a : Arc s) (h : a.IsSinglePoint) :
   rw [measure]
   split_ifs with hr hss
   · rfl
-  · exfalso
-    apply hss.2.1
-    rw [h]
-    exact left_mem_lineOrOrthRadius
+  · exact absurd (by rw [h]; exact left_mem_lineOrOrthRadius) hss.left_notMem
   · rw [← left_eq_right_of_isSinglePoint a h]
-    apply angle_self_of_ne
-    intro heq
-    have hdist := mem_sphere.mp a.left_mem
-    rw [heq, dist_self] at hdist
-    exact hr hdist.symm
+    refine angle_self_of_ne fun heq => hr ?_
+    have h2 := mem_sphere.mp a.left_mem
+    rw [heq, dist_self] at h2
+    exact h2.symm
 
 /-- A full-circle arc has measure `2π`. -/
 theorem measure_eq_two_pi_of_isFullCircle (a : Arc s)
@@ -120,10 +128,8 @@ theorem measure_eq_two_pi_of_isFullCircle (a : Arc s)
   have hcenter_not_L : s.center ∉ s.lineOrOrthRadius a.left a.right := by
     rw [hL_eq, mem_orthRadius_iff_inner_left, h_inner_self]
     linarith
-  have hmid_not_L : a.mid ∉ s.lineOrOrthRadius a.left a.right := by
-    rw [hL_eq, mem_orthRadius_iff_inner_left, h_mid_sub, real_inner_smul_left,
-        h_inner_self]
-    linarith
+  have hmid_not_L : a.mid ∉ s.lineOrOrthRadius a.left a.right :=
+    a.mid_notMem_lineOrOrthRadius h.2
   have hSS : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center := by
     refine AffineSubspace.sSameSide_of_vsub_eq_smul
       (m := s.center -ᵥ a.left) (c₁ := 2) (c₂ := 1)
@@ -170,7 +176,7 @@ theorem measure_eq_two_pi_iff_isFullCircle (a : Arc s) (hr : s.radius ≠ 0) :
     linarith [Real.pi_pos]
   · exact hfc
 
-/-! ### Measure of opposite arcs -/
+/-! ### Central angles and half-measure cosine -/
 
 /-- An arc's measure equals its central angle if and only if `a.mid` is not strictly on the same
 side of the chord as `s.center`. -/
@@ -198,336 +204,221 @@ theorem measure_eq_pi_iff_isDiameter (a : Arc s) (hr : s.radius ≠ 0) :
   · constructor <;> intro h <;> linarith
   · rfl
 
-/-- The opposite arc has measure `2π` minus the arc's measure. -/
-theorem measure_opposite [Fact (Module.finrank ℝ V = 2)]
-    (a : Arc s) (hr : s.radius ≠ 0) :
-    a.opposite.measure = 2 * π - a.measure := by
-  have h_left_ne_center : a.left ≠ s.center := fun heq => by
-    have := mem_sphere.mp a.left_mem
-    rw [heq, dist_self] at this
-    exact hr this.symm
+/-- On a sphere of nonzero radius, the half-measure cosine vanishes exactly for diametral arcs. -/
+theorem cos_half_measure_eq_zero_iff_isDiameter (a : Arc s) (hr : s.radius ≠ 0) :
+    Real.cos (a.measure / 2) = 0 ↔ s.IsDiameter a.left a.right := by
+  rw [← measure_eq_pi_iff_isDiameter a hr]
+  refine ⟨fun h => ?_, fun h => by rw [h]; exact Real.cos_pi_div_two⟩
+  have heq := Real.injOn_cos
+    ⟨by linarith [a.measure_nonneg], by linarith [a.measure_le_two_pi]⟩
+    ⟨by positivity, by linarith [Real.pi_pos]⟩
+    (show Real.cos (a.measure / 2) = Real.cos (π / 2) by rw [h, Real.cos_pi_div_two])
+  linarith
+
+/-- On a sphere of nonzero radius, the anchor is strictly on the center's side of the chord
+exactly when the half-measure cosine is negative. -/
+theorem sSameSide_iff_cos_half_measure_neg (a : Arc s) (hr : s.radius ≠ 0) :
+    (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center ↔
+      Real.cos (a.measure / 2) < 0 := by
+  constructor
+  · intro hss
+    have hθ : ∠ a.left s.center a.right < π :=
+      (angle_le_pi _ _ _).lt_of_ne fun hπ =>
+        (measure_eq_angle_iff_not_sSameSide a hr).mp
+          (by rw [measure, if_neg hr, if_pos hss, hπ]; ring) hss
+    rw [measure, if_neg hr, if_pos hss,
+      show (2 * π - ∠ a.left s.center a.right) / 2 =
+        π - ∠ a.left s.center a.right / 2 by ring, Real.cos_pi_sub, neg_lt_zero]
+    exact Real.cos_pos_of_mem_Ioo
+      ⟨by linarith [Real.pi_pos, angle_nonneg a.left s.center a.right], by linarith⟩
+  · intro h
+    by_contra hss
+    rw [(measure_eq_angle_iff_not_sSameSide a hr).mpr hss] at h
+    exact absurd h (not_lt.mpr (Real.cos_nonneg_of_mem_Icc
+      ⟨by linarith [Real.pi_pos, angle_nonneg a.left s.center a.right],
+        by linarith [angle_le_pi a.left s.center a.right]⟩))
+
+/-! ### Endpoint-sum identity -/
+
+/-- The endpoint radius sum is a scalar multiple of the anchor radius, with coefficient
+`2 * cos (measure / 2)`. This also holds for single-point, full-circle,
+and zero-radius arcs. -/
+theorem sum_vsub_center_eq_two_mul_cos_half_measure_smul (a : Arc s) :
+    (a.left -ᵥ s.center) + (a.right -ᵥ s.center) =
+      (2 * Real.cos (a.measure / 2)) • (a.mid -ᵥ s.center) := by
+  rcases eq_or_ne s.radius 0 with hr0 | hr_ne
+  · have hl := dist_eq_zero.mp ((mem_sphere.mp a.left_mem).trans hr0)
+    have hm := dist_eq_zero.mp ((mem_sphere.mp a.mid_mem).trans hr0)
+    have hright := dist_eq_zero.mp ((mem_sphere.mp a.right_mem).trans hr0)
+    simp [hl, hm, hright]
   by_cases hLR : a.left = a.right
   · rcases isSinglePoint_or_isFullCircle_of_left_eq_right a hLR with hsp | hfc
-    · have h_a : a.measure = 0 := measure_eq_zero_of_isSinglePoint a hsp
-      have h_opp_full : a.opposite.IsFullCircle := by
-        refine ⟨?_, ?_⟩
-        · show a.left = a.opposite.right
-          rw [opposite_right]; exact hLR
-        · show AffineEquiv.pointReflection ℝ s.center a.mid ≠ a.left
-          rw [hsp]
-          intro h
-          rw [AffineEquiv.pointReflection_fixed_iff_of_module] at h
-          exact h_left_ne_center h
-      have h_b : a.opposite.measure = 2 * π :=
-        measure_eq_two_pi_of_isFullCircle a.opposite hr h_opp_full
-      linarith
-    · have h_a : a.measure = 2 * π := measure_eq_two_pi_of_isFullCircle a hr hfc
-      have h_opp_sp : a.opposite.IsSinglePoint := by
-        show AffineEquiv.pointReflection ℝ s.center a.mid = a.left
-        rw [mid_eq_pointReflection_center_left_of_isFullCircle a hfc]
-        exact AffineEquiv.pointReflection_involutive ℝ s.center a.left
-      have h_b : a.opposite.measure = 0 :=
-        measure_eq_zero_of_isSinglePoint a.opposite h_opp_sp
-      linarith
-  · by_cases hcenter : s.center ∈ line[ℝ, a.left, a.right]
-    · have h_diam : s.IsDiameter a.left a.right :=
-        (Sphere.center_mem_affineSpan_pair_iff_isDiameter a.left_mem a.right_mem hLR).mp hcenter
-      have h_diam_opp : s.IsDiameter a.opposite.left a.opposite.right := by
-        show s.IsDiameter a.left a.opposite.right
-        rw [opposite_right]; exact h_diam
-      have h_a : a.measure = π :=
-        (measure_eq_pi_iff_isDiameter a hr).mpr h_diam
-      have h_b : a.opposite.measure = π :=
-        (measure_eq_pi_iff_isDiameter a.opposite hr).mpr h_diam_opp
-      linarith
-    · have h_iff := sSameSide_opposite_mid_iff a hLR hcenter
-      have hL_eq : s.lineOrOrthRadius a.opposite.left a.opposite.right =
-                   s.lineOrOrthRadius a.left a.right := by
-        show s.lineOrOrthRadius a.left a.opposite.right = _
-        rw [opposite_right]
-      have hθ_eq : ∠ a.opposite.left s.center a.opposite.right =
-                   ∠ a.left s.center a.right := by
-        show ∠ a.left s.center a.opposite.right = _
-        rw [opposite_right]
-      by_cases hss : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center
-      · have h_opp_not :
-            ¬ (s.lineOrOrthRadius a.opposite.left a.opposite.right).SSameSide
-              a.opposite.mid s.center := by
-          rw [hL_eq]; exact fun h => h_iff.mp h hss
-        have h_a : a.measure = 2 * π - ∠ a.left s.center a.right := by
-          rw [measure, if_neg hr, if_pos hss]
-        have h_b : a.opposite.measure = ∠ a.left s.center a.right := by
-          have ho := (measure_eq_angle_iff_not_sSameSide a.opposite hr).mpr h_opp_not
-          rw [ho, hθ_eq]
-        linarith
-      · have h_opp_yes :
-            (s.lineOrOrthRadius a.opposite.left a.opposite.right).SSameSide
-              a.opposite.mid s.center := by
-          rw [hL_eq]; exact h_iff.mpr hss
-        have h_a : a.measure = ∠ a.left s.center a.right :=
-          (measure_eq_angle_iff_not_sSameSide a hr).mpr hss
-        have h_b : a.opposite.measure = 2 * π - ∠ a.left s.center a.right := by
-          rw [measure, if_neg hr, if_pos h_opp_yes, hθ_eq]
-        linarith
+    · rw [measure_eq_zero_of_isSinglePoint a hsp, hsp, ← hLR]
+      simp [two_smul]
+    · rw [measure_eq_two_pi_of_isFullCircle a hr_ne hfc,
+        mid_eq_pointReflection_center_left_of_isFullCircle a hfc, ← hLR,
+        AffineEquiv.pointReflection_apply, vadd_vsub, ← neg_vsub_eq_vsub_rev]
+      simp [two_smul]
+  set v : V := a.left -ᵥ s.center with hv_def
+  set w : V := a.right -ᵥ s.center with hw_def
+  set m : V := a.mid -ᵥ s.center with hm_def
+  have hv_norm : ‖v‖ = s.radius := by rw [hv_def]; exact norm_vsub_center_eq_radius a.left_mem
+  have hw_norm : ‖w‖ = s.radius := by rw [hw_def]; exact norm_vsub_center_eq_radius a.right_mem
+  have hm_norm : ‖m‖ = s.radius := by rw [hm_def]; exact norm_vsub_center_eq_radius a.mid_mem
+  obtain ⟨k, hk⟩ := Submodule.mem_span_singleton.mp
+    (sum_vsub_center_mem_span_mid a)
+  have h_u_eq : v + w = k • m := by
+    rw [hv_def, hw_def, hm_def]
+    exact hk.symm
+  have h_inner_vw : ⟪v, w⟫ = (k ^ 2 / 2 - 1) * s.radius ^ 2 := by
+    have h_sq : ‖v + w‖ ^ 2 = k ^ 2 * s.radius ^ 2 := by
+      rw [h_u_eq, norm_smul, Real.norm_eq_abs, hm_norm, mul_pow, sq_abs]
+    have h_sq' : ‖v + w‖ ^ 2 = 2 * s.radius ^ 2 + 2 * ⟪v, w⟫ := by
+      rw [norm_add_sq_real, hv_norm, hw_norm]; ring
+    linarith
+  have h_cos_AOC : Real.cos (∠ a.left s.center a.right) = k ^ 2 / 2 - 1 := by
+    show Real.cos (InnerProductGeometry.angle v w) = k ^ 2 / 2 - 1
+    rw [InnerProductGeometry.cos_angle, hv_norm, hw_norm, h_inner_vw]
+    field_simp
+  have h_AOC_nn : 0 ≤ ∠ a.left s.center a.right :=
+    angle_nonneg _ _ _
+  have h_AOC_le_pi : ∠ a.left s.center a.right ≤ π :=
+    angle_le_pi _ _ _
+  have h_cos_half_AOC :
+      Real.cos (∠ a.left s.center a.right / 2) = |k| / 2 := by
+    have hπ_neg : -π ≤ ∠ a.left s.center a.right := by
+      linarith [Real.pi_pos, h_AOC_nn]
+    rw [Real.cos_half hπ_neg h_AOC_le_pi, h_cos_AOC,
+        show (1 + (k ^ 2 / 2 - 1)) / 2 = (k / 2) ^ 2 from by ring,
+        Real.sqrt_sq_eq_abs, abs_div]
+    congr 1
+    exact abs_of_pos (by norm_num : (0 : ℝ) < 2)
+  set L : AffineSubspace ℝ P := s.lineOrOrthRadius a.left a.right with hL_def
+  have hL_eq : L = line[ℝ, a.left, a.right] := lineOrOrthRadius_of_ne hLR
+  set F : P := _root_.midpoint ℝ a.left a.right with hF_def
+  have hF_mem : F ∈ L := by
+    rw [hL_eq, hF_def]
+    exact AffineMap.lineMap_mem_affineSpan_pair _ _ _
+  have hF_sub : F -ᵥ s.center = (k / 2) • m := by
+    rw [hF_def, midpoint_vsub, ← hv_def, ← hw_def, ← smul_add, h_u_eq, smul_smul,
+        invOf_eq_inv]
+    congr 1; ring
+  have hmid_minus_F : a.mid -ᵥ F = (1 - k / 2) • m := by
+    have h1 : (a.mid -ᵥ F : V) = m - (F -ᵥ s.center) :=
+      (vsub_sub_vsub_cancel_right _ _ _).symm
+    rw [h1, hF_sub]; module
+  have hctr_minus_F : s.center -ᵥ F = (-(k / 2)) • m := by
+    rw [show (s.center -ᵥ F : V) = -(F -ᵥ s.center) from
+          (neg_vsub_eq_vsub_rev _ _).symm,
+        hF_sub, neg_smul]
+  have h_mid_not_in_L : a.mid ∉ L :=
+    a.mid_notMem_lineOrOrthRadius (a.mid_ne_left_of_left_ne_right hLR)
+  have h_k_le_2 : k ≤ 2 :=
+    (le_abs_self k).trans (by
+      linarith [Real.cos_le_one (∠ a.left s.center a.right / 2), h_cos_half_AOC])
+  have h_k_lt_2 : k < 2 := lt_of_le_of_ne h_k_le_2 fun hk => by
+    have hmF : a.mid = F := vsub_eq_zero_iff_eq.mp (by rw [hmid_minus_F, hk]; simp)
+    exact h_mid_not_in_L (by rw [hmF]; exact hF_mem)
+  have h_one_sub_pos : (0 : ℝ) < 1 - k / 2 := by linarith
+  have hm_ne : m ≠ 0 := by rw [← norm_ne_zero_iff, hm_norm]; exact hr_ne
+  have h_ctr_not_in_L_of_k_ne : k ≠ 0 → s.center ∉ L := by
+    intro hk hctr
+    have hdiam := (Sphere.center_mem_affineSpan_pair_iff_isDiameter
+      a.left_mem a.right_mem hLR).mp (hL_eq ▸ hctr)
+    have h0 : (k / 2) • m = 0 := by
+      rw [← hF_sub, hF_def, hdiam.midpoint_eq_center, vsub_self]
+    rcases smul_eq_zero.mp h0 with h | h
+    · exact hk (by linarith)
+    · exact hm_ne h
+  have hiff : L.SSameSide a.mid s.center ↔ k < 0 := by
+    constructor
+    · intro hss
+      by_contra hk
+      have hk_nonneg : 0 ≤ k := le_of_not_gt hk
+      by_cases hk_zero : k = 0
+      · have hF_eq : F = s.center := vsub_eq_zero_iff_eq.mp (by
+          rw [hF_sub, hk_zero, zero_div, zero_smul])
+        exact hss.right_notMem (hF_eq ▸ hF_mem)
+      · have hwopp : L.WOppSide a.mid s.center :=
+          AffineSubspace.wOppSide_of_vsub_eq_smul hF_mem hF_mem
+            hmid_minus_F hctr_minus_F
+            (mul_nonpos_of_nonneg_of_nonpos h_one_sub_pos.le (by linarith))
+        exact (show L.SOppSide a.mid s.center from
+          ⟨hwopp, h_mid_not_in_L, h_ctr_not_in_L_of_k_ne hk_zero⟩).not_sSameSide hss
+    · intro hk
+      exact ⟨AffineSubspace.wSameSide_of_vsub_eq_smul hF_mem hF_mem
+        hmid_minus_F hctr_minus_F
+        (mul_nonneg h_one_sub_pos.le (by linarith)),
+        h_mid_not_in_L, h_ctr_not_in_L_of_k_ne hk.ne⟩
+  suffices hk : k / 2 = Real.cos (a.measure / 2) by
+    change v + w = _ • m
+    rw [h_u_eq, show k = 2 * Real.cos (a.measure / 2) by linarith]
+  rw [measure, if_neg hr_ne]
+  split_ifs with hss
+  · rw [show (2 * π - ∠ a.left s.center a.right) / 2 =
+      π - ∠ a.left s.center a.right / 2 from by ring,
+      Real.cos_pi_sub, h_cos_half_AOC, abs_of_neg (hiff.mp hss)]
+    ring
+  · rw [h_cos_half_AOC, abs_of_nonneg (not_lt.mp (fun hk => hss (hiff.mpr hk)))]
+
+/-! ### Measure of opposite arcs -/
+
+/-- On a sphere of nonzero radius, the opposite arc has measure `2π` minus the arc's measure.
+No dimension hypothesis is required. -/
+theorem measure_opposite (a : Arc s) (hr : s.radius ≠ 0) :
+    a.opposite.measure = 2 * π - a.measure := by
+  have hm_ne : (a.mid -ᵥ s.center : V) ≠ 0 := by
+    rw [← norm_ne_zero_iff, norm_vsub_center_eq_radius a.mid_mem]
+    exact hr
+  have hsum := a.opposite.sum_vsub_center_eq_two_mul_cos_half_measure_smul
+  simp only [opposite_left, opposite_right, opposite_mid_vsub_center,
+    smul_neg, ← neg_smul] at hsum
+  have hcos : -(2 * Real.cos (a.opposite.measure / 2)) = 2 * Real.cos (a.measure / 2) :=
+    smul_left_injective ℝ hm_ne
+      (hsum.symm.trans a.sum_vsub_center_eq_two_mul_cos_half_measure_smul)
+  have hhalf := Real.injOn_cos
+    ⟨by linarith [a.opposite.measure_nonneg], by linarith [a.opposite.measure_le_two_pi]⟩
+    ⟨by linarith [a.measure_le_two_pi], by linarith [a.measure_nonneg, Real.pi_pos]⟩
+    (show Real.cos (a.opposite.measure / 2) = Real.cos (π - a.measure / 2) by
+      rw [Real.cos_pi_sub]; linarith)
+  linarith
 
 /-- An arc and its opposite have measures summing to `2π`. -/
-theorem measure_add_measure_opposite [Fact (Module.finrank ℝ V = 2)]
-    (a : Arc s) (hr : s.radius ≠ 0) :
+theorem measure_add_measure_opposite (a : Arc s) (hr : s.radius ≠ 0) :
     a.measure + a.opposite.measure = 2 * π := by
   rw [measure_opposite a hr]; ring
 
 /-! ### Measure on minor and major arcs -/
 
-/-- The displacement from the sphere center to any point on the chord line (or the orthogonal
-radius in the equal-endpoint case) has constant inner product with the minor midpoint direction. -/
-theorem inner_vsub_center_minorMidpoint_of_mem_lineOrOrthRadius
-    {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hND : ¬s.IsDiameter A C)
-    {p : P} (hp : p ∈ s.lineOrOrthRadius A C) :
-    ⟪p -ᵥ s.center, (minor hA hC hND).mid -ᵥ s.center⟫ =
-      s.radius * ‖(A -ᵥ s.center) + (C -ᵥ s.center)‖ / 2 := by
-  have hr_ne : s.radius ≠ 0 := fun hr0 => hND ⟨hA, by
-    have hA_eq : A = s.center :=
-      dist_eq_zero.mp ((mem_sphere.mp hA).trans hr0)
-    have hC_eq : C = s.center :=
-      dist_eq_zero.mp ((mem_sphere.mp hC).trans hr0)
-    rw [hA_eq, hC_eq, midpoint_self]⟩
-  have hr_pos : 0 < s.radius := radius_pos_of_mem hA hr_ne
-  have hA_norm : ‖A -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius hA
-  have hC_norm : ‖C -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius hC
-  set v : V := (A -ᵥ s.center) + (C -ᵥ s.center) with hv_def
-  have hv_ne : v ≠ 0 := sum_vsub_center_ne_zero_of_not_isDiameter hA hND
-  have hv_norm_pos : 0 < ‖v‖ := norm_pos_iff.mpr hv_ne
-  have hM_sub : (minor hA hC hND).mid -ᵥ s.center = (s.radius / ‖v‖) • v := by
-    rw [minor_mid, vadd_vsub]
-  have h_v_norm_sq :
-      ‖v‖ ^ 2 = 2 * s.radius ^ 2 + 2 * ⟪A -ᵥ s.center, C -ᵥ s.center⟫ := by
-    have hh : ‖(A -ᵥ s.center) + (C -ᵥ s.center)‖ ^ 2 =
-        ‖A -ᵥ s.center‖ ^ 2 + 2 * ⟪A -ᵥ s.center, C -ᵥ s.center⟫
-          + ‖C -ᵥ s.center‖ ^ 2 := norm_add_sq_real _ _
-    rw [hA_norm, hC_norm, ← hv_def] at hh
-    linarith
-  have h_AC_inner :
-      ⟪A -ᵥ s.center, C -ᵥ s.center⟫ = (‖v‖ ^ 2 - 2 * s.radius ^ 2) / 2 := by linarith
-  have h_A_v_inner : ⟪A -ᵥ s.center, v⟫ = ‖v‖ ^ 2 / 2 := by
-    show ⟪A -ᵥ s.center, (A -ᵥ s.center) + (C -ᵥ s.center)⟫ = _
-    rw [inner_add_right, real_inner_self_eq_norm_sq, hA_norm, h_AC_inner]
-    ring
-  have h_C_v_inner : ⟪C -ᵥ s.center, v⟫ = ‖v‖ ^ 2 / 2 := by
-    show ⟪C -ᵥ s.center, (A -ᵥ s.center) + (C -ᵥ s.center)⟫ = _
-    rw [inner_add_right, real_inner_self_eq_norm_sq, hC_norm,
-        real_inner_comm (A -ᵥ s.center) (C -ᵥ s.center), h_AC_inner]
-    ring
-  have h_A_M_inner :
-      ⟪A -ᵥ s.center, (minor hA hC hND).mid -ᵥ s.center⟫ = s.radius * ‖v‖ / 2 := by
-    rw [hM_sub, real_inner_smul_right, h_A_v_inner]
-    field_simp
-  have h_C_M_inner :
-      ⟪C -ᵥ s.center, (minor hA hC hND).mid -ᵥ s.center⟫ = s.radius * ‖v‖ / 2 := by
-    rw [hM_sub, real_inner_smul_right, h_C_v_inner]
-    field_simp
-  by_cases hAC : A = C
-  · rw [lineOrOrthRadius_of_eq hAC, mem_orthRadius_iff_inner_left] at hp
-    have h_v_eq : v = (2 : ℝ) • (A -ᵥ s.center) := by
-      show (A -ᵥ s.center) + (C -ᵥ s.center) = _
-      rw [← hAC, two_smul]
-    have h_v_norm : ‖v‖ = 2 * s.radius := by
-      rw [h_v_eq, norm_smul, Real.norm_eq_abs, abs_of_pos two_pos, hA_norm]
-    have hM_eq_A_sub : (minor hA hC hND).mid -ᵥ s.center = A -ᵥ s.center := by
-      rw [hM_sub, h_v_norm, h_v_eq, smul_smul,
-          show s.radius / (2 * s.radius) * 2 = 1 from by field_simp,
-          one_smul]
-    rw [hM_eq_A_sub,
-        show (p -ᵥ s.center : V) = (p -ᵥ A) + (A -ᵥ s.center) from
-          (vsub_add_vsub_cancel _ _ _).symm,
-        inner_add_left, hp, zero_add, real_inner_self_eq_norm_sq, hA_norm,
-        h_v_norm]
-    ring
-  · rw [lineOrOrthRadius_of_ne hAC] at hp
-    have hm_perp_d :
-        ⟪C -ᵥ A, (minor hA hC hND).mid -ᵥ s.center⟫ = 0 := by
-      rw [show (C -ᵥ A : V) = (C -ᵥ s.center) - (A -ᵥ s.center) from
-            (vsub_sub_vsub_cancel_right _ _ _).symm,
-          inner_sub_left, h_C_M_inner, h_A_M_inner]
-      ring
-    obtain ⟨t, ht⟩ := mem_affineSpan_pair_iff_exists_lineMap_eq.mp hp
-    rw [AffineMap.lineMap_apply] at ht
-    have h_p_sub : (p -ᵥ A : V) = t • (C -ᵥ A) := by rw [← ht, vadd_vsub]
-    rw [show (p -ᵥ s.center : V) = (p -ᵥ A) + (A -ᵥ s.center) from
-          (vsub_add_vsub_cancel _ _ _).symm,
-        h_p_sub, inner_add_left, real_inner_smul_left, hm_perp_d, mul_zero,
-        zero_add, h_A_M_inner]
-
 /-- The measure of a minor arc equals the central angle `∠ A s.center C`. -/
 @[simp]
 theorem measure_minor {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hND : ¬s.IsDiameter A C) :
     (minor hA hC hND).measure = ∠ A s.center C := by
-  have hr_ne : s.radius ≠ 0 := fun hr0 => hND ⟨hA, by
-    have hA_eq : A = s.center :=
-      dist_eq_zero.mp ((mem_sphere.mp hA).trans hr0)
-    have hC_eq : C = s.center :=
-      dist_eq_zero.mp ((mem_sphere.mp hC).trans hr0)
-    rw [hA_eq, hC_eq, midpoint_self]⟩
-  have hr_pos : 0 < s.radius := radius_pos_of_mem hA hr_ne
-  have hA_norm : ‖A -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius hA
-  have hC_norm : ‖C -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius hC
-  set v : V := (A -ᵥ s.center) + (C -ᵥ s.center) with hv_def
-  have hv_ne : v ≠ 0 := sum_vsub_center_ne_zero_of_not_isDiameter hA hND
-  have hv_norm_pos : 0 < ‖v‖ := norm_pos_iff.mpr hv_ne
-  have hv_norm_le : ‖v‖ ≤ 2 * s.radius := by
-    calc ‖v‖ ≤ ‖A -ᵥ s.center‖ + ‖C -ᵥ s.center‖ := norm_add_le _ _
-      _ = 2 * s.radius := by rw [hA_norm, hC_norm]; ring
-  have h_M_norm : ‖(minor hA hC hND).mid -ᵥ s.center‖ = s.radius := by
-    exact norm_vsub_center_eq_radius (minor hA hC hND).mid_mem
-  have h_M_M_inner :
-      ⟪(minor hA hC hND).mid -ᵥ s.center, (minor hA hC hND).mid -ᵥ s.center⟫
-        = s.radius ^ 2 := by
-    rw [real_inner_self_eq_norm_sq, h_M_norm]
-  have h_L_inner : ∀ p, p ∈ s.lineOrOrthRadius A C →
-      ⟪p -ᵥ s.center, (minor hA hC hND).mid -ᵥ s.center⟫ = s.radius * ‖v‖ / 2 := by
-    intro p hp
-    simpa [hv_def] using
-      inner_vsub_center_minorMidpoint_of_mem_lineOrOrthRadius hA hC hND hp
-  rw [measure, if_neg hr_ne]
-  suffices h : ¬ (s.lineOrOrthRadius (minor hA hC hND).left (minor hA hC hND).right).SSameSide
-                (minor hA hC hND).mid s.center by
-    rw [if_neg h, minor_left, minor_right]
-  rw [minor_left, minor_right]
-  intro hss
-  obtain ⟨p₁, hp₁, p₂, hp₂, hsr⟩ := hss.1
-  have hα :
-      ⟪(minor hA hC hND).mid -ᵥ p₁, (minor hA hC hND).mid -ᵥ s.center⟫
-        = s.radius ^ 2 - s.radius * ‖v‖ / 2 := by
-    rw [show ((minor hA hC hND).mid -ᵥ p₁ : V) =
-            ((minor hA hC hND).mid -ᵥ s.center) - (p₁ -ᵥ s.center) from
-          (vsub_sub_vsub_cancel_right _ _ _).symm,
-        inner_sub_left, h_M_M_inner, h_L_inner p₁ hp₁]
-  have hβ :
-      ⟪s.center -ᵥ p₂, (minor hA hC hND).mid -ᵥ s.center⟫
-        = -(s.radius * ‖v‖ / 2) := by
-    rw [show (s.center -ᵥ p₂ : V) = -(p₂ -ᵥ s.center) from
-          (neg_vsub_eq_vsub_rev _ _).symm,
-        inner_neg_left, h_L_inner p₂ hp₂]
-  have hα_nonneg : 0 ≤ s.radius ^ 2 - s.radius * ‖v‖ / 2 := by nlinarith
-  have hβ_neg : -(s.radius * ‖v‖ / 2) < 0 := by nlinarith
-  rcases hsr with hM_zero | hcen_zero | ⟨a, b, ha_pos, hb_pos, h_ab_eq⟩
-  · exact hss.2.1 ((vsub_eq_zero_iff_eq.mp hM_zero).symm ▸ hp₁)
-  · exact hss.2.2 ((vsub_eq_zero_iff_eq.mp hcen_zero).symm ▸ hp₂)
-  · have h_inner_eq :
-        a * (s.radius ^ 2 - s.radius * ‖v‖ / 2) = b * -(s.radius * ‖v‖ / 2) := by
-      have := congrArg (fun x => ⟪x, (minor hA hC hND).mid -ᵥ s.center⟫) h_ab_eq
-      simp only at this
-      rw [real_inner_smul_left, real_inner_smul_left, hα, hβ] at this
-      exact this
-    nlinarith
+  have hr := radius_ne_zero_of_not_isDiameter hA hC hND
+  have hu := sum_vsub_center_ne_zero_of_not_isDiameter hA hND
+  have hscale : 0 < s.radius / ‖(A -ᵥ s.center) + (C -ᵥ s.center)‖ :=
+    div_pos (radius_pos_of_mem hA hr) (norm_pos_iff.mpr hu)
+  have hid := (minor hA hC hND).sum_vsub_center_eq_two_mul_cos_half_measure_smul
+  rw [minor_left, minor_right, minor_mid, vadd_vsub, smul_smul] at hid
+  have hcoeff : 2 * Real.cos ((minor hA hC hND).measure / 2) *
+      (s.radius / ‖(A -ᵥ s.center) + (C -ᵥ s.center)‖) = 1 :=
+    smul_left_injective ℝ hu (hid.symm.trans (one_smul ℝ _).symm)
+  have hcos : 0 < Real.cos ((minor hA hC hND).measure / 2) := by
+    nlinarith [hcoeff, hscale]
+  have hss : ¬(s.lineOrOrthRadius (minor hA hC hND).left
+      (minor hA hC hND).right).SSameSide (minor hA hC hND).mid s.center :=
+    fun h => (not_lt.mpr hcos.le)
+      (((minor hA hC hND).sSameSide_iff_cos_half_measure_neg hr).mp h)
+  simpa only [minor_left, minor_right] using
+    (measure_eq_angle_iff_not_sSameSide (minor hA hC hND) hr).mpr hss
 
 /-- The measure of a major arc equals `2π` minus the central angle `∠ A s.center C`. -/
 @[simp]
 theorem measure_major {A C : P} (hA : A ∈ s) (hC : C ∈ s) (hND : ¬s.IsDiameter A C) :
     (major hA hC hND).measure = 2 * π - ∠ A s.center C := by
-  have hr_ne : s.radius ≠ 0 := fun hr0 => hND ⟨hA, by
-    have hA_eq : A = s.center :=
-      dist_eq_zero.mp ((mem_sphere.mp hA).trans hr0)
-    have hC_eq : C = s.center :=
-      dist_eq_zero.mp ((mem_sphere.mp hC).trans hr0)
-    rw [hA_eq, hC_eq, midpoint_self]⟩
-  have hr_pos : 0 < s.radius := radius_pos_of_mem hA hr_ne
-  have hA_norm : ‖A -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius hA
-  have hC_norm : ‖C -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius hC
-  set v : V := (A -ᵥ s.center) + (C -ᵥ s.center) with hv_def
-  have hv_ne : v ≠ 0 := sum_vsub_center_ne_zero_of_not_isDiameter hA hND
-  have hv_norm_pos : 0 < ‖v‖ := norm_pos_iff.mpr hv_ne
-  have hv_norm_le : ‖v‖ ≤ 2 * s.radius := by
-    calc ‖v‖ ≤ ‖A -ᵥ s.center‖ + ‖C -ᵥ s.center‖ := norm_add_le _ _
-      _ = 2 * s.radius := by rw [hA_norm, hC_norm]; ring
-  have hM_sub :
-      (major hA hC hND).mid -ᵥ s.center = -((s.radius / ‖v‖) • v) := by
-    rw [major_mid, AffineEquiv.pointReflection_apply, vadd_vsub, minor_mid,
-        ← neg_vsub_eq_vsub_rev, vadd_vsub]
-  have h_M_norm : ‖(major hA hC hND).mid -ᵥ s.center‖ = s.radius := by
-    exact norm_vsub_center_eq_radius (major hA hC hND).mid_mem
-  have h_M_M_inner :
-      ⟪(major hA hC hND).mid -ᵥ s.center, (major hA hC hND).mid -ᵥ s.center⟫
-        = s.radius ^ 2 := by
-    rw [real_inner_self_eq_norm_sq, h_M_norm]
-  have hminorM_sub :
-      (minor hA hC hND).mid -ᵥ s.center = (s.radius / ‖v‖) • v := by
-    rw [minor_mid, vadd_vsub]
-  have h_major_mid_neg_minor :
-      (major hA hC hND).mid -ᵥ s.center =
-        -((minor hA hC hND).mid -ᵥ s.center : V) := by
-    rw [hM_sub, hminorM_sub]
-  have h_L_inner : ∀ p, p ∈ s.lineOrOrthRadius A C →
-      ⟪p -ᵥ s.center, (major hA hC hND).mid -ᵥ s.center⟫
-        = -(s.radius * ‖v‖ / 2) := by
-    intro p hp
-    have hminor :
-        ⟪p -ᵥ s.center, (minor hA hC hND).mid -ᵥ s.center⟫ =
-          s.radius * ‖v‖ / 2 := by
-      simpa [hv_def] using
-        inner_vsub_center_minorMidpoint_of_mem_lineOrOrthRadius hA hC hND hp
-    rw [h_major_mid_neg_minor, inner_neg_right, hminor]
-  rw [measure, if_neg hr_ne]
-  suffices h : (s.lineOrOrthRadius (major hA hC hND).left
-                  (major hA hC hND).right).SSameSide
-                (major hA hC hND).mid s.center by
-    rw [if_pos h, major_left, major_right]
-  rw [major_left, major_right]
-  have h_M_not_in_L : (major hA hC hND).mid ∉ s.lineOrOrthRadius A C := by
-    intro hM
-    have h := h_L_inner _ hM
-    rw [h_M_M_inner] at h
-    nlinarith
-  have h_O_not_in_L : s.center ∉ s.lineOrOrthRadius A C := by
-    intro hO
-    have h := h_L_inner _ hO
-    rw [vsub_self, inner_zero_left] at h
-    nlinarith
-  by_cases hAC : A = C
-  · have hAL : A ∈ s.lineOrOrthRadius A C := left_mem_lineOrOrthRadius
-    have h_v_eq : v = (2 : ℝ) • (A -ᵥ s.center) := by
-      show (A -ᵥ s.center) + (C -ᵥ s.center) = _
-      rw [← hAC, two_smul]
-    have h_v_norm : ‖v‖ = 2 * s.radius := by
-      rw [h_v_eq, norm_smul, Real.norm_eq_abs, abs_of_pos two_pos, hA_norm]
-    have hM_to_O : (major hA hC hND).mid -ᵥ s.center = -(A -ᵥ s.center) := by
-      rw [hM_sub, h_v_norm, h_v_eq, smul_smul,
-          show s.radius / (2 * s.radius) * 2 = 1 from by field_simp,
-          one_smul]
-    have hM_minus_A :
-        ((major hA hC hND).mid -ᵥ A : V) = (-2 : ℝ) • (A -ᵥ s.center) := by
-      have h1 : ((major hA hC hND).mid -ᵥ A : V) =
-          ((major hA hC hND).mid -ᵥ s.center) - (A -ᵥ s.center) :=
-        (vsub_sub_vsub_cancel_right _ _ _).symm
-      rw [h1, hM_to_O]; module
-    have hO_minus_A : (s.center -ᵥ A : V) = (-1 : ℝ) • (A -ᵥ s.center) := by
-      rw [show (s.center -ᵥ A : V) = -(A -ᵥ s.center) from
-            (neg_vsub_eq_vsub_rev _ _).symm, neg_one_smul]
-    exact AffineSubspace.sSameSide_of_vsub_eq_smul hAL hAL hM_minus_A hO_minus_A
-      (by norm_num) h_M_not_in_L h_O_not_in_L
-  · set F : P := midpoint ℝ A C with hF_def
-    have hF_in_L : F ∈ s.lineOrOrthRadius A C := by
-      rw [lineOrOrthRadius_of_ne hAC, hF_def]
-      exact AffineMap.lineMap_mem_affineSpan_pair _ _ _
-    have hF_minus_O : (F -ᵥ s.center : V) = (⅟ (2 : ℝ)) • v := by
-      rw [hF_def, hv_def, midpoint_vsub, smul_add]
-    have hO_minus_F : (s.center -ᵥ F : V) = -((⅟ (2 : ℝ)) • v) := by
-      rw [show (s.center -ᵥ F : V) = -(F -ᵥ s.center) from
-            (neg_vsub_eq_vsub_rev _ _).symm, hF_minus_O]
-    have hM_minus_F : ((major hA hC hND).mid -ᵥ F : V) =
-        (-(⅟ (2 : ℝ) + s.radius / ‖v‖)) • v := by
-      have h1 : ((major hA hC hND).mid -ᵥ F : V) =
-          ((major hA hC hND).mid -ᵥ s.center) - (F -ᵥ s.center) :=
-        (vsub_sub_vsub_cancel_right _ _ _).symm
-      rw [h1, hM_sub, hF_minus_O]; module
-    have hO_minus_F' : (s.center -ᵥ F : V) = (-(⅟ (2 : ℝ))) • v := by
-      rw [hO_minus_F, neg_smul]
-    have h_half_pos : (0 : ℝ) < ⅟ (2 : ℝ) := by
-      rw [invOf_eq_inv]; norm_num
-    have hβ_pos : (0 : ℝ) < ⅟ (2 : ℝ) + s.radius / ‖v‖ := by
-      have hsr : 0 < s.radius / ‖v‖ := div_pos hr_pos hv_norm_pos
-      linarith
-    exact AffineSubspace.sSameSide_of_vsub_eq_smul hF_in_L hF_in_L
-      hM_minus_F hO_minus_F' (by nlinarith) h_M_not_in_L h_O_not_in_L
+  rw [← minor_opposite_eq_major hA hC hND,
+    measure_opposite _ (radius_ne_zero_of_not_isDiameter hA hC hND),
+    measure_minor hA hC hND]
 
 /-- A minor arc has measure at most `π`. -/
 theorem measure_minor_le_pi {A C : P} (hA : A ∈ s) (hC : C ∈ s)
@@ -648,7 +539,7 @@ theorem measure_through_eq_angle_add_angle_of_mem_minor_interior
     rw [minor_mid, vadd_vsub, hρ_def, hv_def]
   set L : AffineSubspace ℝ P := s.lineOrOrthRadius A C with hL_def
   have hL_eq : L = line[ℝ, A, C] := lineOrOrthRadius_of_ne hAC
-  set F : P := midpoint ℝ A C with hF_def
+  set F : P := _root_.midpoint ℝ A C with hF_def
   have hF_in_L : F ∈ L := by
     rw [hL_eq, hF_def]; exact AffineMap.lineMap_mem_affineSpan_pair _ _ _
   have hF_sub : F -ᵥ s.center = (2⁻¹ : ℝ) • v := by
@@ -873,59 +764,41 @@ theorem angle_eq_measure_sub_angle_of_mem_through_interior [Fact (Module.finrank
 
 /-! ### Arcs and chords -/
 
+/-- The chord of an arc has length `2 * s.radius * Real.sin (a.measure / 2)`. -/
+theorem dist_left_right_eq_two_mul_radius_mul_sin_measure (a : Arc s) :
+    dist a.left a.right = 2 * s.radius * Real.sin (a.measure / 2) := by
+  have hsin : 0 ≤ Real.sin (a.measure / 2) :=
+    Real.sin_nonneg_of_nonneg_of_le_pi
+      (by linarith [a.measure_nonneg]) (by linarith [a.measure_le_two_pi])
+  have hr : 0 ≤ s.radius := radius_nonneg_of_mem a.left_mem
+  apply (sq_eq_sq₀ dist_nonneg (by positivity)).mp
+  rw [dist_eq_norm_vsub V,
+    show (a.left -ᵥ a.right : V) = (a.left -ᵥ s.center) - (a.right -ᵥ s.center) from
+      (vsub_sub_vsub_cancel_right _ _ _).symm,
+    @norm_sub_sq_real, norm_vsub_center_eq_radius a.left_mem,
+    norm_vsub_center_eq_radius a.right_mem]
+  have hinner : ⟪a.left -ᵥ s.center, a.right -ᵥ s.center⟫
+      = s.radius ^ 2 * (2 * Real.cos (a.measure / 2) ^ 2 - 1) := by
+    have hsq : ‖(a.left -ᵥ s.center) + (a.right -ᵥ s.center)‖ ^ 2
+        = 4 * s.radius ^ 2 * Real.cos (a.measure / 2) ^ 2 := by
+      rw [a.sum_vsub_center_eq_two_mul_cos_half_measure_smul, norm_smul, Real.norm_eq_abs,
+        norm_vsub_center_eq_radius a.mid_mem, mul_pow, sq_abs]; ring
+    rw [@norm_add_sq_real, norm_vsub_center_eq_radius a.left_mem,
+      norm_vsub_center_eq_radius a.right_mem] at hsq
+    nlinarith [hsq, Real.sin_sq_add_cos_sq (a.measure / 2)]
+  rw [hinner]
+  nlinarith [Real.sin_sq_add_cos_sq (a.measure / 2)]
+
 /-- The chord of an arc has length `2 * s.radius * Real.sin (∠ a.left s.center a.right / 2)`. -/
 theorem dist_left_right_eq_two_mul_radius_mul_sin (a : Arc s) :
     dist a.left a.right =
       2 * s.radius * Real.sin (∠ a.left s.center a.right / 2) := by
-  set v : V := a.left -ᵥ s.center with hv_def
-  set w : V := a.right -ᵥ s.center with hw_def
-  have hv_norm : ‖v‖ = s.radius := by rw [hv_def]; exact norm_vsub_center_eq_radius a.left_mem
-  have hw_norm : ‖w‖ = s.radius := by rw [hw_def]; exact norm_vsub_center_eq_radius a.right_mem
-  have hr_nn : 0 ≤ s.radius := hv_norm ▸ norm_nonneg _
-  set θ : ℝ := ∠ a.left s.center a.right with hθ_def
-  have hθ_eq : θ = InnerProductGeometry.angle v w := rfl
-  have hθ_nn : 0 ≤ θ := angle_nonneg _ _ _
-  have hθ_le_pi : θ ≤ π := angle_le_pi _ _ _
-  have h_half_nn : 0 ≤ θ / 2 := by linarith
-  have h_half_le_pi : θ / 2 ≤ π := by linarith [Real.pi_pos]
-  have h_sin_nn : 0 ≤ Real.sin (θ / 2) :=
-    Real.sin_nonneg_of_nonneg_of_le_pi h_half_nn h_half_le_pi
-  have h_rhs_nn : 0 ≤ 2 * s.radius * Real.sin (θ / 2) := by positivity
-  have h_inner : ⟪v, w⟫ = Real.cos θ * s.radius ^ 2 := by
-    have hcos := InnerProductGeometry.cos_angle_mul_norm_mul_norm v w
-    rw [← hθ_eq, hv_norm, hw_norm] at hcos
-    rw [← hcos]; ring
-  have h_lhs_sq :
-      (dist a.left a.right) ^ 2 = 2 * s.radius ^ 2 * (1 - Real.cos θ) := by
-    rw [dist_eq_norm_vsub V,
-        show (a.left -ᵥ a.right : V) = v - w from
-          (vsub_sub_vsub_cancel_right _ _ _).symm,
-        @norm_sub_sq_real V _ _ v w, hv_norm, hw_norm, h_inner]
-    ring
-  have h_sin_sq : Real.sin (θ / 2) ^ 2 = (1 - Real.cos θ) / 2 := by
-    have h := Real.sin_sq_eq_half_sub (θ / 2)
-    rw [show (2 : ℝ) * (θ / 2) = θ from by ring] at h
-    linarith
-  have h_rhs_sq :
-      (2 * s.radius * Real.sin (θ / 2)) ^ 2 = 2 * s.radius ^ 2 * (1 - Real.cos θ) := by
-    rw [mul_pow, mul_pow, h_sin_sq]; ring
-  exact (sq_eq_sq₀ dist_nonneg h_rhs_nn).mp (h_lhs_sq.trans h_rhs_sq.symm)
-
-/-- The chord of an arc has length `2 * s.radius * Real.sin (a.measure / 2)`. -/
-theorem dist_left_right_eq_two_mul_radius_mul_sin_measure (a : Arc s) :
-    dist a.left a.right = 2 * s.radius * Real.sin (a.measure / 2) := by
-  by_cases hr : s.radius = 0
-  · have hL : a.left = s.center :=
-      dist_eq_zero.mp ((mem_sphere.mp a.left_mem).trans hr)
-    have hR : a.right = s.center :=
-      dist_eq_zero.mp ((mem_sphere.mp a.right_mem).trans hr)
-    rw [hL, hR, dist_self, hr]; ring
-  · rw [dist_left_right_eq_two_mul_radius_mul_sin a, measure, if_neg hr]
-    split_ifs with hss
-    · rw [show (2 * π - ∠ a.left s.center a.right) / 2 =
-            π - ∠ a.left s.center a.right / 2 from by ring,
-          Real.sin_pi_sub]
-    · rfl
+  rw [dist_left_right_eq_two_mul_radius_mul_sin_measure a, measure]
+  split_ifs with hr hss
+  · simp [hr]
+  · rw [show (2 * π - ∠ a.left s.center a.right) / 2 =
+      π - ∠ a.left s.center a.right / 2 from by ring, Real.sin_pi_sub]
+  · rfl
 
 /-- On a minor arc, the chord length is `2 * s.radius * Real.sin (measure / 2)`. -/
 theorem dist_left_right_eq_two_mul_radius_mul_sin_measure_of_minor
@@ -1009,565 +882,134 @@ theorem mem_perpBisector_of_angle_center_eq {A M C : P}
       dist_left_right_eq_two_mul_radius_mul_sin_measure_of_minor hM hC h_not_diam_MC,
       measure_minor hM hA h_not_diam_MA, measure_minor hM hC h_not_diam_MC, h_bisect']
 
-/-! ### The measure-bisecting midpoint -/
+/-! ### The arc midpoint -/
 
-open Classical in
-/-- The measure-bisecting midpoint of an arc. It normalizes a direction vector derived from the
-chord and `a.mid`; in the semicircle case the direction is obtained by orthogonalizing
-`a.mid -ᵥ s.center` against the chord. -/
-def midpoint (a : Arc s) : P :=
-  let v := a.left -ᵥ s.center
-  let w := a.right -ᵥ s.center
-  let u := v + w
-  if u = 0 then
-    let m := a.mid -ᵥ s.center
-    let proj := m - (⟪m, v⟫ / ⟪v, v⟫) • v
-    (s.radius / ‖proj‖) • proj +ᵥ s.center
-  else
-    let signed_u :=
-      if (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center then -u else u
-    (s.radius / ‖signed_u‖) • signed_u +ᵥ s.center
+private theorem minorMidpoint_eq_sign_smul_mid (a : Arc s)
+    (hND : ¬s.IsDiameter a.left a.right) :
+    minorMidpoint s a.left a.right =
+      (Real.cos (a.measure / 2) / |Real.cos (a.measure / 2)|) •
+        (a.mid -ᵥ s.center) +ᵥ s.center := by
+  have hr := radius_ne_zero_of_not_isDiameter a.left_mem a.right_mem hND
+  have hc : Real.cos (a.measure / 2) ≠ 0 :=
+    fun h => hND ((a.cos_half_measure_eq_zero_iff_isDiameter hr).mp h)
+  rw [minorMidpoint, a.sum_vsub_center_eq_two_mul_cos_half_measure_smul,
+    norm_smul, Real.norm_eq_abs, norm_vsub_center_eq_radius a.mid_mem, smul_smul]
+  congr 2
+  rw [abs_mul, abs_of_pos (by norm_num : (0:ℝ) < 2)]
+  field_simp
 
-private theorem sum_left_right_vsub_center_mem_span_mid (a : Arc s) :
-    (a.left -ᵥ s.center) + (a.right -ᵥ s.center) ∈ ℝ ∙ (a.mid -ᵥ s.center) := by
-  classical
-  let L : AffineSubspace ℝ P := line[ℝ, s.center, a.mid]
-  have hL_dir_eq : L.direction =
-      ℝ ∙ (a.mid -ᵥ s.center) := by
-    dsimp [L]
-    rw [direction_affineSpan, vectorSpan_pair_rev]
-  have h_right_reflect :
-      (a.right -ᵥ s.center : V) = L.direction.reflection (a.left -ᵥ s.center) := by
-    rw [a.right_eq_reflection]
-    have h :=
-      reflection_apply_of_mem L a.left (x := s.center)
-        (show s.center ∈ L from left_mem_affineSpan_pair ℝ s.center a.mid)
-    rw [h, vadd_vsub]
-  rw [← hL_dir_eq, h_right_reflect, Submodule.reflection_apply]
-  have hmem : (2 : ℝ) • L.direction.starProjection (a.left -ᵥ s.center) ∈ L.direction :=
-    Submodule.smul_mem L.direction (2 : ℝ)
-      (Submodule.starProjection_apply_mem L.direction (a.left -ᵥ s.center))
-  convert hmem using 1
-  abel_nf
-  norm_num [two_smul]
+/-- For a non-diametral arc whose anchor is not strictly on the center's side of the chord,
+the anchor is the normalized sum of the endpoint radius vectors. Includes single-point arcs. -/
+theorem mid_eq_minorMidpoint (a : Arc s)
+    (hND : ¬s.IsDiameter a.left a.right)
+    (hss : ¬(s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center) :
+    a.mid = minorMidpoint s a.left a.right := by
+  have hr := radius_ne_zero_of_not_isDiameter a.left_mem a.right_mem hND
+  have hc : 0 < Real.cos (a.measure / 2) :=
+    lt_of_le_of_ne (not_lt.mp fun h => hss ((a.sSameSide_iff_cos_half_measure_neg hr).mpr h))
+      fun h => hND ((a.cos_half_measure_eq_zero_iff_isDiameter hr).mp h.symm)
+  rw [minorMidpoint_eq_sign_smul_mid a hND, abs_of_pos hc, div_self hc.ne',
+    one_smul, vsub_vadd]
 
-/-- For a non-degenerate arc, the measure-bisecting midpoint coincides with the structural mid. -/
-theorem midpoint_eq_mid (a : Arc s) (hnd : ¬a.IsDegenerate) :
-    a.midpoint = a.mid := by
-  classical
-  have hmid_left : a.mid ≠ a.left := fun h => hnd (Or.inl h)
-  have hr_ne : s.radius ≠ 0 :=
-    radius_ne_zero_of_mem_of_mem_of_ne a.mid_mem a.left_mem hmid_left
-  have hr_pos : 0 < s.radius := radius_pos_of_mem a.left_mem hr_ne
-  have hLR : a.left ≠ a.right :=
-    (left_ne_right_iff_not_isDegenerate a).mpr hnd
-  have hv_norm : ‖a.left -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius a.left_mem
-  have hw_norm : ‖a.right -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius a.right_mem
-  have hm_norm : ‖a.mid -ᵥ s.center‖ = s.radius := norm_vsub_center_eq_radius a.mid_mem
-  have hm_ne : (a.mid -ᵥ s.center : V) ≠ 0 :=
-    norm_ne_zero_iff.mp (hm_norm.symm ▸ hr_ne)
-  have h_perp : ⟪a.mid -ᵥ s.center, a.right -ᵥ a.left⟫ = 0 :=
-    a.inner_mid_vsub_center_right_vsub_left
-  obtain ⟨k, hk⟩ := Submodule.mem_span_singleton.mp
-    (sum_left_right_vsub_center_mem_span_mid a)
-  have h_u_eq : (a.left -ᵥ s.center) + (a.right -ᵥ s.center) =
-      k • (a.mid -ᵥ s.center) := by
-    exact hk.symm
-  have h_k_abs_lt_2 : |k| < 2 := by
-    have h_u_norm : ‖(a.left -ᵥ s.center) + (a.right -ᵥ s.center)‖ = |k| * s.radius := by
-      rw [h_u_eq, norm_smul, Real.norm_eq_abs, hm_norm]
-    have h_u_norm_le : ‖(a.left -ᵥ s.center) + (a.right -ᵥ s.center)‖ ≤ 2 * s.radius := by
-      calc ‖(a.left -ᵥ s.center) + (a.right -ᵥ s.center)‖
-          ≤ ‖a.left -ᵥ s.center‖ + ‖a.right -ᵥ s.center‖ := norm_add_le _ _
-        _ = 2 * s.radius := by rw [hv_norm, hw_norm]; ring
-    have h_abs_le : |k| ≤ 2 := by
-      have := h_u_norm ▸ h_u_norm_le
-      nlinarith
-    rcases lt_or_eq_of_le h_abs_le with h_lt | h_eq
-    · exact h_lt
-    · exfalso
-      have h_u_norm_eq : ‖(a.left -ᵥ s.center) + (a.right -ᵥ s.center)‖ = 2 * s.radius := by
-        rw [h_u_norm, h_eq]
-      have h_u_sq : ‖(a.left -ᵥ s.center) + (a.right -ᵥ s.center)‖ ^ 2 = 4 * s.radius ^ 2 := by
-        rw [h_u_norm_eq]; ring
-      have h_u_inner : ‖(a.left -ᵥ s.center) + (a.right -ᵥ s.center)‖ ^ 2 =
-          2 * s.radius ^ 2 + 2 * ⟪a.left -ᵥ s.center, a.right -ᵥ s.center⟫ := by
-        rw [norm_add_sq_real, hv_norm, hw_norm]; ring
-      have h_vw : ⟪a.left -ᵥ s.center, a.right -ᵥ s.center⟫ = s.radius ^ 2 := by
-        linarith [h_u_sq.symm.trans h_u_inner]
-      have h_vw_norm_prod : ⟪a.left -ᵥ s.center, a.right -ᵥ s.center⟫ =
-          ‖a.left -ᵥ s.center‖ * ‖a.right -ᵥ s.center‖ := by
-        rw [h_vw, hv_norm, hw_norm]; ring
-      have h_smul_eq : ‖a.right -ᵥ s.center‖ • (a.left -ᵥ s.center : V) =
-          ‖a.left -ᵥ s.center‖ • (a.right -ᵥ s.center) :=
-        inner_eq_norm_mul_iff_real.mp h_vw_norm_prod
-      rw [hv_norm, hw_norm] at h_smul_eq
-      have h_vw_eq : (a.left -ᵥ s.center : V) = a.right -ᵥ s.center :=
-        smul_right_injective V hr_ne h_smul_eq
-      apply hLR
-      have h1 : (a.left -ᵥ s.center) +ᵥ s.center =
-          (a.right -ᵥ s.center) +ᵥ s.center := by rw [h_vw_eq]
-      rwa [vsub_vadd, vsub_vadd] at h1
-  have h_k_lt_2 : k < 2 := (abs_lt.mp h_k_abs_lt_2).2
-  have h_one_sub_pos : (0 : ℝ) < 1 - k / 2 := by linarith
-  suffices h_vec : a.midpoint -ᵥ s.center = a.mid -ᵥ s.center by
-    have h1 : (a.midpoint -ᵥ s.center) +ᵥ s.center =
-        (a.mid -ᵥ s.center) +ᵥ s.center := by rw [h_vec]
-    rwa [vsub_vadd, vsub_vadd] at h1
-  show (if (a.left -ᵥ s.center) + (a.right -ᵥ s.center) = 0 then
-    (s.radius /
-        ‖(a.mid -ᵥ s.center) -
-            (⟪a.mid -ᵥ s.center, a.left -ᵥ s.center⟫ /
-              ⟪a.left -ᵥ s.center, a.left -ᵥ s.center⟫) •
-              (a.left -ᵥ s.center)‖) •
-      ((a.mid -ᵥ s.center) -
-        (⟪a.mid -ᵥ s.center, a.left -ᵥ s.center⟫ /
-          ⟪a.left -ᵥ s.center, a.left -ᵥ s.center⟫) •
-          (a.left -ᵥ s.center)) +ᵥ
-    s.center
-  else
-    (s.radius /
-        ‖if (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center
-          then -((a.left -ᵥ s.center) + (a.right -ᵥ s.center))
-          else (a.left -ᵥ s.center) + (a.right -ᵥ s.center)‖) •
-      (if (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center
-        then -((a.left -ᵥ s.center) + (a.right -ᵥ s.center))
-        else (a.left -ᵥ s.center) + (a.right -ᵥ s.center)) +ᵥ
-    s.center) -ᵥ s.center = a.mid -ᵥ s.center
-  have hL_eq : s.lineOrOrthRadius a.left a.right = line[ℝ, a.left, a.right] :=
-    lineOrOrthRadius_of_ne hLR
-  set F : P := _root_.midpoint ℝ a.left a.right with hF_def
-  have hF_mem : F ∈ s.lineOrOrthRadius a.left a.right := by
-    rw [hL_eq, hF_def]
-    exact AffineMap.lineMap_mem_affineSpan_pair _ _ _
-  have hF_sub : F -ᵥ s.center = (k / 2) • (a.mid -ᵥ s.center) := by
-    rw [hF_def, midpoint_vsub, ← smul_add, h_u_eq, smul_smul, invOf_eq_inv]
-    congr 1
-    ring
-  have hmid_minus_F : a.mid -ᵥ F = (1 - k / 2) • (a.mid -ᵥ s.center) := by
-    have h1 : (a.mid -ᵥ F : V) = (a.mid -ᵥ s.center) - (F -ᵥ s.center) :=
-      (vsub_sub_vsub_cancel_right _ _ _).symm
-    rw [h1, hF_sub]; module
-  have hctr_minus_F : s.center -ᵥ F = (-(k / 2)) • (a.mid -ᵥ s.center) := by
-    rw [show (s.center -ᵥ F : V) = -(F -ᵥ s.center) from
-          (neg_vsub_eq_vsub_rev _ _).symm,
-        hF_sub, neg_smul]
-  have hL_dir_chord : (line[ℝ, a.left, a.right] : AffineSubspace ℝ P).direction =
-      ℝ ∙ (a.right -ᵥ a.left) := by
-    rw [direction_affineSpan, vectorSpan_pair_rev]
-  have h_c_zero_of_mem : ∀ c : ℝ,
-      (c • (a.mid -ᵥ s.center) : V) ∈
-        (line[ℝ, a.left, a.right] : AffineSubspace ℝ P).direction → c = 0 := by
-    intro c hmem
-    rw [hL_dir_chord] at hmem
-    have h1 : c • (a.mid -ᵥ s.center) ∈ (ℝ ∙ (a.right -ᵥ a.left))ᗮ := by
-      rw [Submodule.mem_orthogonal_singleton_iff_inner_left, inner_smul_left]
-      rw [show ⟪a.mid -ᵥ s.center, a.right -ᵥ a.left⟫ = 0 from h_perp]
-      ring
-    have h_inter : c • (a.mid -ᵥ s.center) ∈
-        (ℝ ∙ (a.right -ᵥ a.left)) ⊓ (ℝ ∙ (a.right -ᵥ a.left))ᗮ :=
-      Submodule.mem_inf.mpr ⟨hmem, h1⟩
-    rw [(Submodule.orthogonal_disjoint _).eq_bot, Submodule.mem_bot] at h_inter
-    rcases smul_eq_zero.mp h_inter with hc | hm0
-    · exact hc
-    · exact absurd hm0 hm_ne
-  have h_mid_not_in_L : a.mid ∉ s.lineOrOrthRadius a.left a.right := by
-    intro hmem
-    rw [hL_eq] at hmem
-    have hdir_mem : (a.mid -ᵥ F : V) ∈
-        (line[ℝ, a.left, a.right] : AffineSubspace ℝ P).direction :=
-      AffineSubspace.vsub_mem_direction hmem
-        (show F ∈ line[ℝ, a.left, a.right] from hL_eq ▸ hF_mem)
-    rw [hmid_minus_F] at hdir_mem
-    have h_one_sub_zero := h_c_zero_of_mem _ hdir_mem
-    linarith
-  split_ifs with hu hss
-  · rw [vadd_vsub]
-    have h_mv_zero : ⟪a.mid -ᵥ s.center, a.left -ᵥ s.center⟫ = 0 := by
-      have h_right_eq_neg_left :
-          (a.right -ᵥ s.center : V) = -(a.left -ᵥ s.center) := by
-        calc
-          (a.right -ᵥ s.center : V) =
-              0 - (a.left -ᵥ s.center) := by
-                rw [← hu]; abel
-          _ = -(a.left -ᵥ s.center) := by rw [zero_sub]
-      have h_chord : (a.right -ᵥ a.left : V) =
-          (a.right -ᵥ s.center) - (a.left -ᵥ s.center) :=
-        (vsub_sub_vsub_cancel_right _ _ _).symm
-      have h_perp' := h_perp
-      rw [h_chord, h_right_eq_neg_left, inner_sub_right, inner_neg_right] at h_perp'
-      linarith
-    rw [h_mv_zero, zero_div, zero_smul, sub_zero]
-    rw [hm_norm, div_self hr_ne, one_smul]
-  · rw [vadd_vsub]
-    have hk_ne : k ≠ 0 := by
-      intro hk_zero
-      apply hu
-      rw [h_u_eq, hk_zero, zero_smul]
-    have h_k_neg : k < 0 := by
-      rcases lt_or_gt_of_ne hk_ne with h_neg | h_pos
-      · exact h_neg
-      · exfalso
-        have hwopp : (s.lineOrOrthRadius a.left a.right).WOppSide a.mid s.center := by
-          have h_pos_1 : (0 : ℝ) < 1 - k / 2 := h_one_sub_pos
-          have h_pos_2 : (0 : ℝ) < k / 2 := by linarith
-          exact AffineSubspace.wOppSide_of_vsub_eq_smul
-            (m := a.mid -ᵥ s.center) (c₁ := 1 - k / 2) (c₂ := -(k / 2))
-            hF_mem hF_mem hmid_minus_F hctr_minus_F
-            (mul_nonpos_of_nonneg_of_nonpos h_pos_1.le (by linarith))
-        have h_ctr_not_in_L : s.center ∉ s.lineOrOrthRadius a.left a.right := by
-          intro hctr
-          rw [hL_eq] at hctr
-          have hdir_mem : (s.center -ᵥ F : V) ∈
-              (line[ℝ, a.left, a.right] : AffineSubspace ℝ P).direction :=
-            AffineSubspace.vsub_mem_direction hctr
-              (show F ∈ line[ℝ, a.left, a.right] from hL_eq ▸ hF_mem)
-          rw [hctr_minus_F] at hdir_mem
-          have hzero := h_c_zero_of_mem _ hdir_mem
-          have : k = 0 := by linarith
-          exact hk_ne this
-        have hsopp : (s.lineOrOrthRadius a.left a.right).SOppSide a.mid s.center :=
-          ⟨hwopp, h_mid_not_in_L, h_ctr_not_in_L⟩
-        exact hsopp.not_sSameSide hss
-    rw [show -((a.left -ᵥ s.center) + (a.right -ᵥ s.center)) = (-k) • (a.mid -ᵥ s.center)
-          from by rw [h_u_eq, neg_smul]]
-    have h_neg_k_pos : (0 : ℝ) < -k := by linarith
-    rw [norm_smul, Real.norm_eq_abs, abs_of_pos h_neg_k_pos, hm_norm, smul_smul]
-    rw [show s.radius / (-k * s.radius) * -k = 1 from by field_simp]
-    rw [one_smul]
-  · rw [vadd_vsub]
-    have hk_ne : k ≠ 0 := by
-      intro hk_zero
-      apply hu
-      rw [h_u_eq, hk_zero, zero_smul]
-    have h_k_pos : 0 < k := by
-      rcases lt_or_gt_of_ne hk_ne with h_neg | h_pos
-      · exfalso
-        have hwsame : (s.lineOrOrthRadius a.left a.right).WSameSide a.mid s.center := by
-          have h_pos_1 : (0 : ℝ) < 1 - k / 2 := h_one_sub_pos
-          have h_pos_2 : (0 : ℝ) < -(k / 2) := by linarith
-          exact AffineSubspace.wSameSide_of_vsub_eq_smul
-            (m := a.mid -ᵥ s.center) (c₁ := 1 - k / 2) (c₂ := -(k / 2))
-            hF_mem hF_mem hmid_minus_F hctr_minus_F (mul_nonneg h_pos_1.le h_pos_2.le)
-        have h_ctr_not_in_L : s.center ∉ s.lineOrOrthRadius a.left a.right := by
-          intro hctr
-          rw [hL_eq] at hctr
-          have hdir_mem : (s.center -ᵥ F : V) ∈
-              (line[ℝ, a.left, a.right] : AffineSubspace ℝ P).direction :=
-            AffineSubspace.vsub_mem_direction hctr
-              (show F ∈ line[ℝ, a.left, a.right] from hL_eq ▸ hF_mem)
-          rw [hctr_minus_F] at hdir_mem
-          have hzero := h_c_zero_of_mem _ hdir_mem
-          have : k = 0 := by linarith
-          exact hk_ne this
-        have hssame : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center :=
-          ⟨hwsame, h_mid_not_in_L, h_ctr_not_in_L⟩
-        exact hss hssame
-      · exact h_pos
-    rw [h_u_eq, norm_smul, Real.norm_eq_abs, abs_of_pos h_k_pos, hm_norm, smul_smul]
-    rw [show s.radius / (k * s.radius) * k = 1 from by field_simp]
-    rw [one_smul]
+/-- For a non-diametral arc whose anchor is strictly on the center's side of the chord,
+the anchor is the antipode of the normalized endpoint sum. Includes full-circle arcs. -/
+theorem mid_eq_pointReflection_minorMidpoint (a : Arc s)
+    (hND : ¬s.IsDiameter a.left a.right)
+    (hss : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center) :
+    a.mid = AffineEquiv.pointReflection ℝ s.center (minorMidpoint s a.left a.right) := by
+  have hr := radius_ne_zero_of_not_isDiameter a.left_mem a.right_mem hND
+  have hc := (a.sSameSide_iff_cos_half_measure_neg hr).mp hss
+  rw [minorMidpoint_eq_sign_smul_mid a hND, abs_of_neg hc, div_neg, div_self hc.ne,
+    neg_one_smul, AffineEquiv.pointReflection_apply, ← neg_vsub_eq_vsub_rev,
+    vadd_vsub, neg_neg, vsub_vadd]
 
-/-- The measure-bisecting midpoint of a non-degenerate arc lies on the sphere. -/
-theorem midpoint_mem (a : Arc s) (hnd : ¬a.IsDegenerate) :
-    a.midpoint ∈ s := by
-  rw [midpoint_eq_mid a hnd]
-  exact a.mid_mem
+/-- The public geometric name for the midpoint, definitionally equal to the stored anchor.
+`mid` is the simp normal form. The geometric content is `angle_center_midpoint_eq_half_measure`;
+bisection is proved rather than required as a structure invariant. -/
+def midpoint (a : Arc s) : P := a.mid
 
-/-- The measure-bisecting midpoint of a non-degenerate arc lies on the arc. -/
-theorem midpoint_mem_arc (a : Arc s) (hnd : ¬a.IsDegenerate) :
-    a.midpoint ∈ a := by
-  rw [midpoint_eq_mid a hnd]
-  exact mid_mem_arc a
+@[simp]
+theorem midpoint_eq_mid (a : Arc s) : a.midpoint = a.mid := rfl
 
-/-- The measure-bisecting midpoint of a non-degenerate arc differs from the left endpoint. -/
-theorem midpoint_ne_left (a : Arc s) (hnd : ¬a.IsDegenerate) : a.midpoint ≠ a.left := by
-  rw [midpoint_eq_mid a hnd]
-  exact not_isSinglePoint_of_left_ne_right a ((left_ne_right_iff_not_isDegenerate a).mpr hnd)
+/-- The midpoint of every arc lies on the sphere. -/
+theorem midpoint_mem (a : Arc s) : a.midpoint ∈ s := a.mid_mem
 
-/-- The measure-bisecting midpoint of a non-degenerate arc differs from the right endpoint. -/
-theorem midpoint_ne_right (a : Arc s) (hnd : ¬a.IsDegenerate) : a.midpoint ≠ a.right := by
-  rw [midpoint_eq_mid a hnd]
-  exact fun h =>
-    ((left_ne_right_iff_not_isDegenerate a).mpr hnd) (left_eq_right_of_mid_eq_right a h)
+/-- The midpoint of every arc lies on the arc. -/
+theorem midpoint_mem_arc (a : Arc s) : a.midpoint ∈ a := mid_mem_arc a
 
-/-- The measure-bisecting midpoint of a non-degenerate arc lies in its interior. -/
-theorem midpoint_mem_interior (a : Arc s) (hnd : ¬a.IsDegenerate) :
-    a.midpoint ∈ a.interior :=
-  mem_interior_of_mem_of_ne_left_of_ne_right
-    (midpoint_mem_arc a hnd) (midpoint_ne_left a hnd) (midpoint_ne_right a hnd)
+/-- Unless the arc is a single point, its midpoint differs from the left endpoint. -/
+theorem midpoint_ne_left (a : Arc s) (h : ¬a.IsSinglePoint) : a.midpoint ≠ a.left := h
 
-/-- The measure-bisecting midpoint of a non-degenerate arc does not lie on the chord (or, in the
-semicircle case, tangent) line `s.lineOrOrthRadius a.left a.right`. -/
-theorem midpoint_notMem_lineOrOrthRadius (a : Arc s) (hnd : ¬a.IsDegenerate) :
-    a.midpoint ∉ s.lineOrOrthRadius a.left a.right := by
-  have hLR := (left_ne_right_iff_not_isDegenerate a).mpr hnd
-  rw [midpoint_eq_mid a hnd]
-  exact mid_notMem_lineOrOrthRadius a hLR
+/-- Unless the arc is a single point, its midpoint differs from the right endpoint. -/
+theorem midpoint_ne_right (a : Arc s) (h : ¬a.IsSinglePoint) : a.midpoint ≠ a.right :=
+  a.mid_ne_right h
 
-/-- The measure-bisecting midpoint of a non-degenerate arc does not lie on the chord line
-`line[a.left, a.right]` (the non-degenerate specialization of
-`midpoint_notMem_lineOrOrthRadius`). -/
-theorem midpoint_notMem_line (a : Arc s) (hnd : ¬a.IsDegenerate) :
-    a.midpoint ∉ line[ℝ, a.left, a.right] := by
-  rw [midpoint_eq_mid a hnd]
-  exact a.mid_notMem_line ((left_ne_right_iff_not_isDegenerate a).mpr hnd)
+/-- Unless the arc is a single point, its midpoint lies in its interior,
+including for full circles. -/
+theorem midpoint_mem_interior (a : Arc s) (h : ¬a.IsSinglePoint) :
+    a.midpoint ∈ a.interior := a.mid_mem_interior h
 
-open Classical in
-/-- Each endpoint subtends the central angle `a.measure / 2` to the measure-bisecting midpoint. -/
-theorem angle_center_midpoint_eq_half_measure (a : Arc s) (hnd : ¬a.IsDegenerate) :
+/-- Unless the arc is a single point, its midpoint does not lie on the separating subspace. -/
+theorem midpoint_notMem_lineOrOrthRadius (a : Arc s) (h : ¬a.IsSinglePoint) :
+    a.midpoint ∉ s.lineOrOrthRadius a.left a.right := a.mid_notMem_lineOrOrthRadius h
+
+/-- Unless the arc is a single point, its midpoint does not lie on the chord's affine span. -/
+theorem midpoint_notMem_line (a : Arc s) (h : ¬a.IsSinglePoint) :
+    a.midpoint ∉ line[ℝ, a.left, a.right] := a.mid_notMem_line h
+
+/-- Reflection symmetry gives equal central angles to the anchor, even at radius zero. -/
+theorem angle_center_mid_eq_angle_mid_center_right (a : Arc s) :
+    ∠ a.left s.center a.mid = ∠ a.mid s.center a.right := by
+  have h := a.inner_mid_vsub_center_right_vsub_left
+  rw [← vsub_sub_vsub_cancel_right a.right a.left s.center, inner_sub_right, sub_eq_zero] at h
+  unfold EuclideanGeometry.angle InnerProductGeometry.angle
+  rw [norm_vsub_center_eq_radius a.left_mem, norm_vsub_center_eq_radius a.right_mem, h,
+    real_inner_comm (a.left -ᵥ s.center) (a.mid -ᵥ s.center),
+    mul_comm s.radius ‖a.mid -ᵥ s.center‖]
+
+/-- On a sphere of nonzero radius, each endpoint subtends the central angle `a.measure / 2` to
+the arc midpoint. This includes single-point and full-circle arcs. -/
+theorem angle_center_midpoint_eq_half_measure (a : Arc s) (hr : s.radius ≠ 0) :
     ∠ a.left s.center a.midpoint = a.measure / 2 ∧
       ∠ a.midpoint s.center a.right = a.measure / 2 := by
-  classical
-  rw [midpoint_eq_mid a hnd]
-  have hLR : a.left ≠ a.right :=
-    (left_ne_right_iff_not_isDegenerate a).mpr hnd
-  have hr_ne : s.radius ≠ 0 :=
-    radius_ne_zero_of_mem_of_mem_of_ne a.left_mem a.right_mem hLR
-  have hr_pos : 0 < s.radius := radius_pos_of_mem a.left_mem hr_ne
-  set v : V := a.left -ᵥ s.center with hv_def
-  set w : V := a.right -ᵥ s.center with hw_def
-  set m : V := a.mid -ᵥ s.center with hm_def
-  have hv_norm : ‖v‖ = s.radius := by rw [hv_def]; exact norm_vsub_center_eq_radius a.left_mem
-  have hw_norm : ‖w‖ = s.radius := by rw [hw_def]; exact norm_vsub_center_eq_radius a.right_mem
-  have hm_norm : ‖m‖ = s.radius := by rw [hm_def]; exact norm_vsub_center_eq_radius a.mid_mem
-  have hmm_eq : ⟪m, m⟫ = s.radius ^ 2 := by
-    rw [real_inner_self_eq_norm_sq, hm_norm]
-  have hr_sq_pos : (0 : ℝ) < s.radius ^ 2 := pow_pos hr_pos 2
-  have h_chord_eq : (a.right -ᵥ a.left : V) = w - v := by
-    show (a.right -ᵥ a.left : V) = (a.right -ᵥ s.center) - (a.left -ᵥ s.center)
-    exact (vsub_sub_vsub_cancel_right _ _ _).symm
-  have h_mid_perp : ⟪m, w - v⟫ = 0 := by
-    rw [← h_chord_eq]; exact a.inner_mid_vsub_center_right_vsub_left
-  have h_vm_eq_wm : ⟪v, m⟫ = ⟪w, m⟫ := by
-    rw [inner_sub_right, sub_eq_zero] at h_mid_perp
-    rw [show ⟪v, m⟫ = ⟪m, v⟫ from (real_inner_comm v m).symm]
-    rw [show ⟪w, m⟫ = ⟪m, w⟫ from (real_inner_comm w m).symm]
-    exact h_mid_perp.symm
-  have h_angles_eq : ∠ a.left s.center a.mid = ∠ a.mid s.center a.right := by
-    rw [angle_comm a.mid s.center a.right]
-    refine Real.injOn_cos
-      ⟨angle_nonneg _ _ _, angle_le_pi _ _ _⟩
-      ⟨angle_nonneg _ _ _, angle_le_pi _ _ _⟩ ?_
-    show Real.cos (InnerProductGeometry.angle v m) =
-         Real.cos (InnerProductGeometry.angle w m)
-    rw [InnerProductGeometry.cos_angle, InnerProductGeometry.cos_angle,
-        hv_norm, hw_norm, h_vm_eq_wm]
-  suffices h : ∠ a.left s.center a.mid = a.measure / 2 by
-    exact ⟨h, h_angles_eq ▸ h⟩
-  obtain ⟨k, hk⟩ := Submodule.mem_span_singleton.mp
-    (sum_left_right_vsub_center_mem_span_mid a)
-  have h_u_eq : v + w = k • m := by
-    rw [hv_def, hw_def, hm_def]
-    exact hk.symm
-  have hk_def_v : k = 2 * ⟪v, m⟫ / s.radius ^ 2 := by
-    have h_inner := congrArg (fun x : V => ⟪x, m⟫) h_u_eq
-    change ⟪v + w, m⟫ = ⟪k • m, m⟫ at h_inner
-    rw [inner_add_left, real_inner_smul_left, h_vm_eq_wm, hmm_eq] at h_inner
-    rw [eq_div_iff hr_sq_pos.ne']
-    linarith
-  have h_k_lt_2 : k < 2 := by
-    have h_u_norm : ‖v + w‖ = |k| * s.radius := by
-      rw [h_u_eq, norm_smul, Real.norm_eq_abs, hm_norm]
-    have h_u_norm_le : ‖v + w‖ ≤ 2 * s.radius := by
-      calc ‖v + w‖ ≤ ‖v‖ + ‖w‖ := norm_add_le _ _
-        _ = 2 * s.radius := by rw [hv_norm, hw_norm]; ring
-    have h_abs_le : |k| ≤ 2 := by
-      have hh := h_u_norm ▸ h_u_norm_le
-      nlinarith
-    have h_lt : |k| < 2 := by
-      rcases lt_or_eq_of_le h_abs_le with h_lt | h_eq
-      · exact h_lt
-      · exfalso
-        have h_u_norm_eq : ‖v + w‖ = 2 * s.radius := by rw [h_u_norm, h_eq]
-        have h_u_sq : ‖v + w‖ ^ 2 = (2 * s.radius) ^ 2 := by rw [h_u_norm_eq]
-        have h_u_inner : ‖v + w‖ ^ 2 = 2 * s.radius ^ 2 + 2 * ⟪v, w⟫ := by
-          rw [norm_add_sq_real, hv_norm, hw_norm]; ring
-        have h_vw : ⟪v, w⟫ = s.radius ^ 2 := by nlinarith
-        have h_vw_prod : ⟪v, w⟫ = ‖v‖ * ‖w‖ := by rw [h_vw, hv_norm, hw_norm]; ring
-        have h_smul_eq : ‖w‖ • v = ‖v‖ • w := inner_eq_norm_mul_iff_real.mp h_vw_prod
-        rw [hv_norm, hw_norm] at h_smul_eq
-        have h_vw_eq : v = w := smul_right_injective V hr_ne h_smul_eq
-        apply hLR
-        have h1 : v +ᵥ s.center = w +ᵥ s.center := by rw [h_vw_eq]
-        rwa [hv_def, hw_def, vsub_vadd, vsub_vadd] at h1
-    exact (abs_lt.mp h_lt).2
-  have h_one_sub_pos : (0 : ℝ) < 1 - k / 2 := by linarith
-  have h_cos_AOM : Real.cos (∠ a.left s.center a.mid) = k / 2 := by
-    show Real.cos (InnerProductGeometry.angle v m) = k / 2
-    rw [InnerProductGeometry.cos_angle, hv_norm, hm_norm, hk_def_v]
-    field_simp
-  have h_inner_vw : ⟪v, w⟫ = (k ^ 2 / 2 - 1) * s.radius ^ 2 := by
-    have h_sq : ‖v + w‖ ^ 2 = k ^ 2 * s.radius ^ 2 := by
-      rw [h_u_eq, norm_smul, Real.norm_eq_abs, hm_norm, mul_pow, sq_abs]
-    have h_sq' : ‖v + w‖ ^ 2 = 2 * s.radius ^ 2 + 2 * ⟪v, w⟫ := by
-      rw [norm_add_sq_real, hv_norm, hw_norm]; ring
-    linarith
-  have h_cos_AOC : Real.cos (∠ a.left s.center a.right) = k ^ 2 / 2 - 1 := by
-    show Real.cos (InnerProductGeometry.angle v w) = k ^ 2 / 2 - 1
-    rw [InnerProductGeometry.cos_angle, hv_norm, hw_norm, h_inner_vw]
-    field_simp
-  have h_AOC_nn : 0 ≤ ∠ a.left s.center a.right :=
-    angle_nonneg _ _ _
-  have h_AOC_le_pi : ∠ a.left s.center a.right ≤ π :=
-    angle_le_pi _ _ _
-  have h_half_AOC_nn : 0 ≤ ∠ a.left s.center a.right / 2 := by linarith
-  have h_half_AOC_le_pi_half : ∠ a.left s.center a.right / 2 ≤ π / 2 := by linarith
-  have h_cos_half_AOC_nn :
-      0 ≤ Real.cos (∠ a.left s.center a.right / 2) :=
-    Real.cos_nonneg_of_mem_Icc ⟨by linarith [Real.pi_pos], h_half_AOC_le_pi_half⟩
-  have h_cos_half_AOC :
-      Real.cos (∠ a.left s.center a.right / 2) = |k| / 2 := by
-    have hπ_neg : -π ≤ ∠ a.left s.center a.right := by
-      linarith [Real.pi_pos, h_AOC_nn]
-    rw [Real.cos_half hπ_neg h_AOC_le_pi, h_cos_AOC,
-        show (1 + (k ^ 2 / 2 - 1)) / 2 = (k / 2) ^ 2 from by ring,
-        Real.sqrt_sq_eq_abs, abs_div]
-    congr 1
-    exact abs_of_pos (by norm_num : (0 : ℝ) < 2)
-  set L : AffineSubspace ℝ P := s.lineOrOrthRadius a.left a.right with hL_def
-  have hL_eq : L = line[ℝ, a.left, a.right] := lineOrOrthRadius_of_ne hLR
-  set F : P := _root_.midpoint ℝ a.left a.right with hF_def
-  have hF_mem : F ∈ L := by
-    rw [hL_eq, hF_def]
-    exact AffineMap.lineMap_mem_affineSpan_pair _ _ _
-  have hF_sub : F -ᵥ s.center = (k / 2) • m := by
-    rw [hF_def, midpoint_vsub, ← hv_def, ← hw_def, ← smul_add, h_u_eq, smul_smul,
-        invOf_eq_inv]
-    congr 1; ring
-  have hmid_minus_F : a.mid -ᵥ F = (1 - k / 2) • m := by
-    have h1 : (a.mid -ᵥ F : V) = m - (F -ᵥ s.center) :=
-      (vsub_sub_vsub_cancel_right _ _ _).symm
-    rw [h1, hF_sub]; module
-  have hctr_minus_F : s.center -ᵥ F = (-(k / 2)) • m := by
-    rw [show (s.center -ᵥ F : V) = -(F -ᵥ s.center) from
-          (neg_vsub_eq_vsub_rev _ _).symm,
-        hF_sub, neg_smul]
-  have hL_dir_chord : (line[ℝ, a.left, a.right] : AffineSubspace ℝ P).direction =
-      ℝ ∙ (w - v) := by
-    rw [direction_affineSpan, vectorSpan_pair_rev, ← h_chord_eq]
-  have h_c_zero_of_mem : ∀ c : ℝ,
-      (c • m : V) ∈ (line[ℝ, a.left, a.right] : AffineSubspace ℝ P).direction →
-        c = 0 := by
-    intro c hmem
-    rw [hL_dir_chord] at hmem
-    obtain ⟨t, ht⟩ := Submodule.mem_span_singleton.mp hmem
-    have hh := congrArg (fun x => ⟪x, m⟫) ht
-    simp only at hh
-    rw [real_inner_smul_left, real_inner_smul_left, hmm_eq] at hh
-    have h_inner_zero : ⟪w - v, m⟫ = 0 := by
-      rw [real_inner_comm, h_mid_perp]
-    rw [h_inner_zero, mul_zero] at hh
-    nlinarith [hr_sq_pos]
-  have h_mid_not_in_L : a.mid ∉ L := by
-    intro hmem
-    rw [hL_eq] at hmem
-    have hdir_mem : (a.mid -ᵥ F : V) ∈
-        (line[ℝ, a.left, a.right] : AffineSubspace ℝ P).direction :=
-      AffineSubspace.vsub_mem_direction hmem
-        (show F ∈ line[ℝ, a.left, a.right] from hL_eq ▸ hF_mem)
-    rw [hmid_minus_F] at hdir_mem
-    have h_zero := h_c_zero_of_mem _ hdir_mem
-    linarith
-  have h_ctr_not_in_L_of_k_ne : k ≠ 0 → s.center ∉ L := by
-    intro hk_ne hctr
-    rw [hL_eq] at hctr
-    have hdir_mem : (s.center -ᵥ F : V) ∈
-        (line[ℝ, a.left, a.right] : AffineSubspace ℝ P).direction :=
-      AffineSubspace.vsub_mem_direction hctr
-        (show F ∈ line[ℝ, a.left, a.right] from hL_eq ▸ hF_mem)
-    rw [hctr_minus_F] at hdir_mem
-    have h_zero := h_c_zero_of_mem _ hdir_mem
-    apply hk_ne
-    linarith
-  have h_aom_nn : 0 ≤ ∠ a.left s.center a.mid :=
-    angle_nonneg _ _ _
-  have h_aom_le_pi : ∠ a.left s.center a.mid ≤ π :=
-    angle_le_pi _ _ _
-  have h_meas_nn : 0 ≤ a.measure := measure_nonneg a
-  have h_meas_le_2pi : a.measure ≤ 2 * π := measure_le_two_pi a
-  have h_meas_half_nn : 0 ≤ a.measure / 2 := by linarith
-  have h_meas_half_le_pi : a.measure / 2 ≤ π := by linarith [Real.pi_pos]
-  refine Real.injOn_cos ⟨h_aom_nn, h_aom_le_pi⟩ ⟨h_meas_half_nn, h_meas_half_le_pi⟩ ?_
-  rw [h_cos_AOM, measure, if_neg hr_ne]
-  split_ifs with hss
-  · have h_k_neg : k < 0 := by
-      rcases lt_trichotomy k 0 with h_neg | h_zero | h_pos
-      · exact h_neg
-      · exfalso
-        have h_uw_zero : v + w = 0 := by rw [h_u_eq, h_zero, zero_smul]
-        have hF_eq_ctr : F = s.center := by
-          have h_midpoint_sub : F -ᵥ s.center = (0 : V) := by
-            rw [hF_def, midpoint_vsub, ← hv_def, ← hw_def, ← smul_add, h_uw_zero,
-                smul_zero]
-          have h1 : (F -ᵥ s.center) +ᵥ s.center = (0 : V) +ᵥ s.center := by
-            rw [h_midpoint_sub]
-          rwa [vsub_vadd, zero_vadd] at h1
-        have hctr_in_L : s.center ∈ L := hF_eq_ctr ▸ hF_mem
-        exact hss.2.2 hctr_in_L
-      · exfalso
-        have h_kh_pos : 0 < k / 2 := by linarith
-        have hwopp : L.WOppSide a.mid s.center := by
-          exact AffineSubspace.wOppSide_of_vsub_eq_smul
-            (m := m) (c₁ := 1 - k / 2) (c₂ := -(k / 2))
-            hF_mem hF_mem hmid_minus_F hctr_minus_F
-            (mul_nonpos_of_nonneg_of_nonpos h_one_sub_pos.le (by linarith))
-        have hctr_not_in_L : s.center ∉ L := h_ctr_not_in_L_of_k_ne h_pos.ne'
-        have hsopp : L.SOppSide a.mid s.center :=
-          ⟨hwopp, h_mid_not_in_L, hctr_not_in_L⟩
-        exact hsopp.not_sSameSide hss
-    rw [show (2 * π - ∠ a.left s.center a.right) / 2 =
-          π - ∠ a.left s.center a.right / 2 from by ring,
-        Real.cos_pi_sub, h_cos_half_AOC, abs_of_neg h_k_neg]
-    ring
-  · have h_k_nn : 0 ≤ k := by
-      by_contra h_neg
-      push Not at h_neg
-      have h_kh_neg : -(k / 2) > 0 := by linarith
-      have hwsame : L.WSameSide a.mid s.center := by
-        exact AffineSubspace.wSameSide_of_vsub_eq_smul
-          (m := m) (c₁ := 1 - k / 2) (c₂ := -(k / 2))
-          hF_mem hF_mem hmid_minus_F hctr_minus_F
-          (mul_nonneg h_one_sub_pos.le h_kh_neg.le)
-      have hctr_not_in_L : s.center ∉ L := h_ctr_not_in_L_of_k_ne h_neg.ne
-      have hssame : L.SSameSide a.mid s.center :=
-        ⟨hwsame, h_mid_not_in_L, hctr_not_in_L⟩
-      exact hss hssame
-    rw [h_cos_half_AOC, abs_of_nonneg h_k_nn]
+  have hvm : ⟪a.left -ᵥ s.center, a.mid -ᵥ s.center⟫
+      = Real.cos (a.measure / 2) * s.radius ^ 2 := by
+    have hip := congrArg (fun x : V => ⟪x, a.mid -ᵥ s.center⟫)
+      a.sum_vsub_center_eq_two_mul_cos_half_measure_smul
+    have heq : ⟪a.right -ᵥ s.center, a.mid -ᵥ s.center⟫
+        = ⟪a.left -ᵥ s.center, a.mid -ᵥ s.center⟫ := by
+      have h := a.inner_mid_vsub_center_right_vsub_left
+      rw [← vsub_sub_vsub_cancel_right a.right a.left s.center,
+        inner_sub_right, sub_eq_zero] at h
+      simpa only [real_inner_comm] using h
+    simp only [inner_add_left, real_inner_smul_left, real_inner_self_eq_norm_sq,
+      norm_vsub_center_eq_radius a.mid_mem] at hip
+    rw [heq] at hip; linarith
+  have hleft : ∠ a.left s.center a.mid = a.measure / 2 := by
+    apply Real.injOn_cos ⟨angle_nonneg _ _ _, angle_le_pi _ _ _⟩
+      ⟨by linarith [a.measure_nonneg], by linarith [a.measure_le_two_pi]⟩
+    change Real.cos (InnerProductGeometry.angle _ _) = _
+    rw [InnerProductGeometry.cos_angle, norm_vsub_center_eq_radius a.left_mem,
+      norm_vsub_center_eq_radius a.mid_mem, hvm, div_eq_iff (mul_ne_zero hr hr)]; ring
+  exact ⟨hleft, a.angle_center_mid_eq_angle_mid_center_right ▸ hleft⟩
 
-/-- The measure-bisecting midpoint lies on the perpendicular bisector of the chord. -/
-theorem midpoint_mem_perpBisector (a : Arc s) (hnd : ¬a.IsDegenerate) :
+/-- The midpoint of every arc lies on the perpendicular bisector of its endpoints. -/
+theorem midpoint_mem_perpBisector (a : Arc s) :
     a.midpoint ∈ AffineSubspace.perpBisector a.left a.right := by
-  rw [midpoint_eq_mid a hnd]
+  rw [midpoint_eq_mid a]
   exact a.line_center_mid_le_perpBisector (right_mem_affineSpan_pair ℝ s.center a.mid)
 
-/-- For a minor arc, the measure-bisecting midpoint equals `minorMidpoint`. -/
+/-- For a minor arc, the midpoint equals `minorMidpoint`. -/
 theorem midpoint_minor_eq_minorMidpoint {A C : P} (hA : A ∈ s) (hC : C ∈ s)
-    (hND : ¬s.IsDiameter A C) (hne : A ≠ C) :
-    (minor hA hC hND).midpoint = minorMidpoint s A C := by
-  have hLR : (minor hA hC hND).left ≠ (minor hA hC hND).right := by
-    simp only [minor_left, minor_right]; exact hne
-  have hnd : ¬(minor hA hC hND).IsDegenerate := by
-    rintro (hsp | hfc)
-    · exact not_isSinglePoint_of_left_ne_right _ hLR hsp
-    · exact not_isFullCircle_of_left_ne_right _ hLR hfc
-  rw [midpoint_eq_mid _ hnd]
-  rfl
+    (hND : ¬s.IsDiameter A C) :
+    (minor hA hC hND).midpoint = minorMidpoint s A C := rfl
 
-/-- For a major arc, the measure-bisecting midpoint is the antipodal point of `minorMidpoint`. -/
+/-- For a major arc, the midpoint is the antipodal point of `minorMidpoint`. -/
 theorem midpoint_major_eq_pointReflection_minorMidpoint
     {A C : P} (hA : A ∈ s) (hC : C ∈ s)
-    (hND : ¬s.IsDiameter A C) (hne : A ≠ C) :
+    (hND : ¬s.IsDiameter A C) :
     (major hA hC hND).midpoint =
-      AffineEquiv.pointReflection ℝ s.center (minorMidpoint s A C) := by
-  have hLR : (major hA hC hND).left ≠ (major hA hC hND).right := by
-    simp only [major_left, major_right]; exact hne
-  have hnd : ¬(major hA hC hND).IsDegenerate := by
-    rintro (hsp | hfc)
-    · exact not_isSinglePoint_of_left_ne_right _ hLR hsp
-    · exact not_isFullCircle_of_left_ne_right _ hLR hfc
-  rw [midpoint_eq_mid _ hnd, major_mid]
-  rfl
+      AffineEquiv.pointReflection ℝ s.center (minorMidpoint s A C) := rfl
 
 end
 
@@ -1875,7 +1317,8 @@ theorem inscribed_angle_eq_half_measure (a : Arc s)
           have h_diam : s.IsDiameter a.left a.right :=
             (angle_center_eq_pi_iff_isDiameter a.left_mem a.right_mem hr_ne).mp h_θ_eq_pi
           have h_ctr_in : s.center ∈ L := by
-            have := (Sphere.center_mem_affineSpan_pair_iff_isDiameter a.left_mem a.right_mem hLR).mpr h_diam
+            have := (Sphere.center_mem_affineSpan_pair_iff_isDiameter
+              a.left_mem a.right_mem hLR).mpr h_diam
             rwa [hL_def]
           exact h_center_in_L h_ctr_in
         have h_cos_γ_sq_pos : 0 < Real.cos γ ^ 2 := pow_pos h_cos_γ_pos 2
@@ -2004,19 +1447,16 @@ theorem angle_bisect_of_mem_opposite {X Y C : P}
     ⟨Module.Basis.orientation
       (Module.finBasisOfFinrankEq ℝ V (Fact.out : Module.finrank ℝ V = 2))⟩
   have hCmem : C ∈ s := mem_sphere_of_mem_interior hC_opp
-  have hnd : ¬ (minor hX hY hND).IsDegenerate := by
-    rw [← left_ne_right_iff_not_isDegenerate, minor_left, minor_right]; exact hXY
   have hne : (minor hX hY hND).left ≠ (minor hX hY hND).right := by
     rw [minor_left, minor_right]; exact hXY
   set M := (minor hX hY hND).midpoint with hM_def
-  have hMmem : M ∈ s := midpoint_mem _ hnd
+  have hMmem : M ∈ s := midpoint_mem _
   have hCX : C ≠ X := by
     have := ne_left_of_mem_interior hC_opp; rwa [opposite_left, minor_left] at this
   have hCY : C ≠ Y := by
     have := ne_right_of_mem_interior hC_opp; rwa [opposite_right, minor_right] at this
   have hM_int : M ∈ (minor hX hY hND).interior :=
-    mem_interior_of_mem_of_ne_left_of_ne_right
-      (midpoint_mem_arc _ hnd) (midpoint_ne_left _ hnd) (midpoint_ne_right _ hnd)
+    midpoint_mem_interior _ (not_isSinglePoint_of_left_ne_right _ hne)
   have hCM : C ≠ M := fun h =>
     Set.disjoint_left.mp (interior_disjoint_opposite _ hne) hM_int (h ▸ hC_opp)
   have hXCY_eq : ∠ X C Y = (minor hX hY hND).measure / 2 := by
@@ -2050,7 +1490,8 @@ theorem angle_bisect_of_mem_opposite {X Y C : P}
   have hb1 : 2 * ∠ X C M ≤ π := by linarith [angle_nonneg M C Y]
   have hb2 : 2 * ∠ M C Y ≤ π := by linarith [angle_nonneg X C M]
   have hcenter : ∠ X s.center M = ∠ M s.center Y := by
-    have hhalf := angle_center_midpoint_eq_half_measure (minor hX hY hND) hnd
+    have hr := radius_ne_zero_of_mem_of_mem_of_ne hX hY hXY
+    have hhalf := angle_center_midpoint_eq_half_measure (minor hX hY hND) hr
     rw [minor_left, minor_right, ← hM_def] at hhalf
     exact hhalf.1.trans hhalf.2.symm
   have h1 := Sphere.angle_center_eq_two_mul_angle_of_two_mul_angle_le_pi

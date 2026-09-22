@@ -152,12 +152,14 @@ two-dimensional hypothesis.
 
 `Arc.measure : ℝ` is a central-angle measure in `[0, 2π]`, including the represented degenerate
 cases: a single point has measure `0`, a full circle has measure `2π`, and a zero-radius sphere has
-measure `0`. `Arc.midpoint` is defined for every arc; its geometric bisection properties and its
-identification with the structural anchor are currently proved for nondegenerate arcs.
+measure `0`. `Arc.midpoint` is definitionally the structural anchor. Sphere membership, arc
+membership, and perpendicular-bisector membership hold for every arc. At nonzero radius the
+midpoint bisects the measure, including for single-point and full-circle arcs; strict positional
+properties require only `¬IsSinglePoint`. An endpoint-sum identity also gives complementary
+measures and chord-length formulae without a dimension hypothesis.
 
 ```lean
-theorem measure_add_measure_opposite [Fact (Module.finrank ℝ V = 2)]
-    (a : Arc s) (hr : s.radius ≠ 0) :
+theorem measure_add_measure_opposite (a : Arc s) (hr : s.radius ≠ 0) :
     a.measure + a.opposite.measure = 2 * π
 
 /-- Inscribed angle theorem, in terms of arc measure. -/
@@ -233,8 +235,8 @@ The remaining arc modules are intended to follow `Basic` in dependency order.
   information locally.
 - **No classical tangent-ray interface.** The existing theorem relates a radius to a chord, not a
   chosen one of the two tangent rays.
-- **Degenerate arc midpoints.** `Arc.midpoint` is total, but its geometric membership and bisection
-  properties are established only under `¬IsDegenerate`.
+- **Zero-radius bisection.** Membership remains valid at radius zero, but the angle bisection law
+  fails: the central angles are `π / 2` while the measure is `0`.
 - **Some planar assumptions are global.** Several theorems use
   `[Fact (Module.finrank ℝ V = 2)]` where a future local-coplanarity formulation may suffice.
 

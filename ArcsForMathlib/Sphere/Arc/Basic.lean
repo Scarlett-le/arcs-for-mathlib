@@ -16,73 +16,62 @@ public import ArcsForMathlib.Auxlemma
 /-!
 # Arcs on spheres
 
-An `EuclideanGeometry.Sphere.Arc s` is one of the two arcs cut out of a sphere `s` by a pair of
-points on it. It is represented by a left endpoint together with an anchor `mid` on the sphere:
-the right endpoint is *derived* as the reflection of `left` in the line through `s.center` and
-`mid`, and membership is decided by the side of the chord on which `mid` lies. This file sets up
-that representation together with its membership and interior predicates, the involution sending
-an arc to the complementary arc on the same endpoints, and the four constructors `minor`,
-`major`, `through` and `avoiding`.
+This file defines `EuclideanGeometry.Sphere.Arc` and the constructors for minor arcs, major arcs,
+and arcs selected by a point they contain or avoid. An arc is represented by a left endpoint and
+an anchor on the sphere; its right endpoint is obtained by reflection. In two dimensions, this
+models the two arcs between distinct points on a circle.
 
 ## Main definitions
 
 * `EuclideanGeometry.Sphere.Arc`: an arc on a sphere, given by a left endpoint and an anchor
   `mid`, both on the sphere.
-* `EuclideanGeometry.Sphere.Arc.right`: the derived right endpoint.
+* `EuclideanGeometry.Sphere.Arc.right`: the right endpoint, derived by reflection in the line
+  through the center and the anchor.
 * `EuclideanGeometry.Sphere.Arc.interior`: the arc with its two endpoints removed.
-* `EuclideanGeometry.Sphere.Arc.opposite`: the complementary arc on the same endpoints.
-* `EuclideanGeometry.Sphere.Arc.minor` / `major`: the two arcs determined by a non-diametral
-  pair of points on the sphere.
-* `EuclideanGeometry.Sphere.Arc.through` / `avoiding`: the arc from `A` to `C` that does,
-  respectively does not, contain `B`.
+* `EuclideanGeometry.Sphere.Arc.opposite`: the opposite arc, with the same ordered endpoints
+  and the antipodal anchor.
+* `EuclideanGeometry.Sphere.Arc.minor`, `EuclideanGeometry.Sphere.Arc.major`: the minor and
+  major arcs determined by a non-diametral pair of points on the sphere.
+* `EuclideanGeometry.Sphere.Arc.through`, `EuclideanGeometry.Sphere.Arc.avoiding`: the arcs
+  from `A` to `C` selected by containing or avoiding a sphere point `B` distinct from
+  both endpoints.
 
 ## Main results
 
-* `EuclideanGeometry.Sphere.Arc.mem_iff_wSameSide`: for an arc with distinct endpoints,
-  membership is weak same-sidedness with `mid`, replacing the disjunctive definition by a single
-  convex-geometry condition.
-* `EuclideanGeometry.Sphere.Arc.coe_eq_interior_union_endpoints`: an arc, as a point set, is its
-  interior together with its endpoints, including when those endpoints coincide.
-* `EuclideanGeometry.Sphere.Arc.interior_eq_empty_of_mid_eq_left` and
-  `EuclideanGeometry.Sphere.Arc.coe_eq_singleton_iff_mid_eq_left`: the single-point representation
-  has empty interior and is characterized by its singleton point set.
-* `EuclideanGeometry.Sphere.Arc.minor_right`, `major_right`, `through_right`, `avoiding_right`:
-  each constructor has `C` as its right endpoint, which is what makes the derived-endpoint
-  representation usable.
-* `EuclideanGeometry.Sphere.Arc.sOppSide_mid_opposite_mid` and
-  `EuclideanGeometry.Sphere.Arc.sSameSide_opposite_mid_iff`: in two dimensions the anchors of an
-  arc and of its opposite lie strictly on opposite sides of the chord, and exactly one of them
-  lies on the same side as `s.center`.
-* `EuclideanGeometry.Sphere.Arc.eq_or_eq_opposite_of_left_eq_of_right_eq` and
-  `EuclideanGeometry.Sphere.Arc.eq_of_left_eq_of_right_eq_of_sSameSide_mid`: in two dimensions
-  the ordered endpoints leave exactly two arcs, and adding a choice of side pins down the `Arc`
-  object.
-* `EuclideanGeometry.Sphere.Arc.eq_minor_or_eq_major_of_ne`: in two dimensions, `minor` and
-  `major` exhaust the `Arc` objects with the same distinct non-diametral ordered endpoints.
-* `EuclideanGeometry.Sphere.Arc.minor_ne_major`: under the non-diameter hypothesis, the two
-  branches are distinct `Arc` objects.
-* `EuclideanGeometry.Sphere.Arc.mem_through` and
-  `EuclideanGeometry.Sphere.Arc.notMem_avoiding`: the defining properties of the last two
-  constructors.
-* `EuclideanGeometry.Sphere.Arc.through_self_eq_major_self`: when the endpoints coincide,
-  `through A B A` is the full circle `major A A`, independently of which `B` selects it.
+* `EuclideanGeometry.Sphere.Arc.mem_iff_wSameSide`: for distinct endpoints, arc membership is
+  equivalent to membership in the sphere and weak same-sidedness with the anchor across the chord.
+* `EuclideanGeometry.Sphere.Arc.coe_eq_interior_union_endpoints`: an arc is the union of its
+  interior and its endpoints, including when the endpoints coincide.
+* `EuclideanGeometry.Sphere.Arc.eq_or_eq_opposite_of_left_eq_of_right_eq`,
+  `EuclideanGeometry.Sphere.Arc.eq_of_left_eq_of_right_eq_of_sSameSide_mid`: in two dimensions,
+  arcs with the same distinct ordered endpoints are equal or opposite; anchors on the same side
+  of the chord determine the same arc.
+* `EuclideanGeometry.Sphere.Arc.eq_minor_or_eq_major_of_ne`,
+  `EuclideanGeometry.Sphere.Arc.minor_ne_major`: in two dimensions, distinct non-diametral
+  ordered endpoints determine exactly two arcs, the minor and major arcs.
+* `EuclideanGeometry.Sphere.Arc.minor_right`, `EuclideanGeometry.Sphere.Arc.major_right`,
+  `EuclideanGeometry.Sphere.Arc.through_right`, `EuclideanGeometry.Sphere.Arc.avoiding_right`:
+  the constructors have the prescribed right endpoint; the last two results assume dimension two.
+* `EuclideanGeometry.Sphere.Arc.mem_through`, `EuclideanGeometry.Sphere.Arc.notMem_avoiding`:
+  in two dimensions, the selected point belongs to the through arc and not to the avoiding arc.
 
 ## Implementation notes
 
-An arc is stored as an endpoint together with an anchor `mid` on the sphere, with `right` derived
-as a reflection, rather than as two endpoints and a choice of side. This makes `right_mem`
-automatic, and when the endpoints coincide it turns the difference between a single-point arc and
-a full circle into a property of `mid` rather than an extra field.
+The right endpoint is the reflection of `left` in the line through `s.center` and `mid`.
+Thus it lies on the sphere without an additional structure field. When the endpoints coincide,
+`mid = left` gives a single-point arc; a distinct anchor gives a full circle in two dimensions.
 
-Membership is stated disjunctively — being an endpoint, or lying strictly on the same side of
-`s.lineOrOrthRadius a.left a.right` as `mid` — and the separating subspace is `lineOrOrthRadius`
-rather than the chord. Both choices are forced by the case `left = right`, where the chord
-degenerates to a point and weak same-sidedness would admit every point of the sphere. For arcs
-with distinct endpoints the simpler form is `mem_iff_wSameSide`.
+Membership requires membership in the sphere and either equality with an endpoint or strict
+same-sidedness with `mid` across `s.lineOrOrthRadius a.left a.right`. For distinct endpoints,
+this separating subspace is the chord's affine span. For coincident endpoints, it is the affine
+subspace orthogonal to the radius, allowing the definition to handle single-point and full-circle
+arcs. The reflection identities used in subsequent proofs are
+`EuclideanGeometry.Sphere.Arc.inner_mid_vsub_center_right_vsub_left` and
+`EuclideanGeometry.Sphere.Arc.sum_vsub_center_mem_span_mid`.
 
 The structure fields `left_mem` and `mid_mem` assert membership in the sphere; membership in the
-arc is `left_mem_arc`, `right_mem_arc` and `mid_mem_arc`. `Arc.interior` is the arc minus its
-endpoints, and is unrelated to the topological interior of the coerced set.
+arc is `left_mem_arc`, `right_mem_arc` and `mid_mem_arc`. The arc interior is the arc minus its
+endpoints, not the topological interior of its point set.
 -/
 
 @[expose] public section
@@ -103,13 +92,14 @@ The right endpoint is computed as the reflection of the left endpoint across the
 center and mid.
 
 Note that the coercion to `Set P` is not injective: reversing the named endpoints of a `minor`
-arc with distinct endpoints preserves its point set but changes `left`. The correct object-level
-uniqueness statement is `eq_of_left_eq_of_right_eq_of_sSameSide_mid`. -/
+arc with distinct endpoints preserves its point set but changes `left`. At this layer, object-level
+uniqueness is `eq_of_left_eq_of_right_eq_of_sSameSide_mid`;
+`Arc.Structure` strengthens it to shared-interior and point-set forms. -/
 @[ext]
 structure Arc (s : Sphere P) where
   /-- The left endpoint of the arc. -/
   left : P
-  /-- A point on the arc (used to distinguish which arc between the endpoints). -/
+  /-- The structural anchor selecting the branch; its midpoint semantics are proved separately. -/
   mid : P
   /-- Proof that left endpoint lies on the sphere. -/
   left_mem : left ∈ s
@@ -202,18 +192,26 @@ lemma mid_mem_arc (a : Arc s) : a.mid ∈ a := by
   · exact Or.inr (Or.inr (AffineSubspace.sSameSide_self_iff.mpr
       ⟨⟨a.left, left_mem_lineOrOrthRadius⟩, hL⟩))
 
-/-- For an arc with distinct endpoints, the mid does not lie on `lineOrOrthRadius`. -/
-lemma mid_notMem_lineOrOrthRadius (a : Arc s) (hne : a.left ≠ a.right) :
+/-- Distinct endpoints force the anchor to differ from the left endpoint. -/
+lemma mid_ne_left_of_left_ne_right (a : Arc s) (hne : a.left ≠ a.right) :
+    a.mid ≠ a.left := fun h => hne (left_eq_right_of_left_eq_mid a h.symm)
+
+/-- An anchor different from the left endpoint also differs from the right endpoint. -/
+lemma mid_ne_right (a : Arc s) (hne : a.mid ≠ a.left) : a.mid ≠ a.right := by
+  intro h
+  exact hne (h.trans (left_eq_right_of_mid_eq_right a h).symm)
+
+/-- If the anchor differs from the left endpoint, it does not lie on the separating subspace. -/
+lemma mid_notMem_lineOrOrthRadius (a : Arc s) (hne : a.mid ≠ a.left) :
     a.mid ∉ s.lineOrOrthRadius a.left a.right :=
   notMem_lineOrOrthRadius_of_mem_sphere a.left_mem a.mid_mem a.right_mem
-    (fun h => hne (left_eq_right_of_left_eq_mid a h.symm))
-    (fun h => hne (left_eq_right_of_mid_eq_right a h))
+    hne (a.mid_ne_right hne)
 
-/-- For an arc with distinct endpoints, the anchor does not lie on the chord. -/
-lemma mid_notMem_line (a : Arc s) (hne : a.left ≠ a.right) :
-    a.mid ∉ line[ℝ, a.left, a.right] := by
-  have h := a.mid_notMem_lineOrOrthRadius hne
-  rwa [lineOrOrthRadius_of_ne hne] at h
+/-- If the anchor differs from the left endpoint, it does not lie on the chord's affine span. -/
+lemma mid_notMem_line (a : Arc s) (hne : a.mid ≠ a.left) :
+    a.mid ∉ line[ℝ, a.left, a.right] :=
+  fun h => a.mid_notMem_lineOrOrthRadius hne
+    (affineSpan_pair_le_of_mem_of_mem left_mem_lineOrOrthRadius right_mem_lineOrOrthRadius h)
 
 /-- For an arc with distinct endpoints, the endpoint-or-strict-side definition of membership is
 equivalent to weak same-sidedness with the mid. -/
@@ -231,7 +229,8 @@ lemma mem_iff_wSameSide {a : Arc s} {p : P} (hne : a.left ≠ a.right) :
     · rcases (mem_lineOrOrthRadius_inter_sphere_iff a.left_mem a.right_mem hp).mp hpL with h | h
       · exact Or.inl h
       · exact Or.inr (Or.inl h)
-    · exact Or.inr (Or.inr ⟨hws, a.mid_notMem_lineOrOrthRadius hne, hpL⟩)
+    · exact Or.inr (Or.inr
+        ⟨hws, a.mid_notMem_lineOrOrthRadius (a.mid_ne_left_of_left_ne_right hne), hpL⟩)
 
 /-- For an arc with distinct endpoints, a point on the sphere that does not lie in the arc is not
 weakly on the same side of the chord as the mid. -/
@@ -334,8 +333,8 @@ theorem coe_eq_singleton_iff_mid_eq_left (a : Arc s) :
   · rw [coe_eq_interior_union_endpoints, interior_eq_empty_of_mid_eq_left a h,
       Set.empty_union, ← left_eq_right_of_left_eq_mid a h.symm, Set.pair_eq_singleton]
 
-/-- The mid point of an arc with distinct endpoints lies in its interior. -/
-theorem mid_mem_interior (a : Arc s) (hne : a.left ≠ a.right) :
+/-- If the anchor differs from the left endpoint, it lies in the arc interior. -/
+theorem mid_mem_interior (a : Arc s) (hne : a.mid ≠ a.left) :
     a.mid ∈ a.interior :=
   mem_interior_iff.mpr ⟨a.mid_mem, AffineSubspace.sSameSide_self_iff.mpr
     ⟨⟨a.left, left_mem_lineOrOrthRadius⟩, mid_notMem_lineOrOrthRadius a hne⟩⟩
@@ -374,7 +373,7 @@ lemma opposite_right (a : Arc s) : a.opposite.right = a.right := by
 lemma opposite_mid_notMem_line (a : Arc s) (hne : a.left ≠ a.right) :
     a.opposite.mid ∉ line[ℝ, a.left, a.right] := by
   simpa only [opposite_left, opposite_right] using
-    a.opposite.mid_notMem_line (by simpa using hne)
+    a.opposite.mid_notMem_line (a.opposite.mid_ne_left_of_left_ne_right (by simpa using hne))
 
 lemma opposite_mid_vsub_center (a : Arc s) :
     a.opposite.mid -ᵥ s.center = -(a.mid -ᵥ s.center) := by
@@ -399,6 +398,23 @@ lemma line_center_mid_le_perpBisector (a : Arc s) :
   intro p hp
   rw [AffineSubspace.mem_perpBisector_iff_dist_eq, a.right_eq_reflection, eq_comm]
   exact dist_reflection_eq_of_mem _ hp _
+
+/-- The sum of the endpoint radius vectors lies along the reflection axis. -/
+theorem sum_vsub_center_mem_span_mid (a : Arc s) :
+    (a.left -ᵥ s.center) + (a.right -ᵥ s.center) ∈ ℝ ∙ (a.mid -ᵥ s.center) := by
+  have hdir : (line[ℝ, s.center, a.mid] : AffineSubspace ℝ P).direction
+      = ℝ ∙ (a.mid -ᵥ s.center) := by
+    rw [direction_affineSpan, vectorSpan_pair_rev]
+  have hsum : (a.left -ᵥ s.center) + (a.right -ᵥ s.center)
+      = 2 • (line[ℝ, s.center, a.mid] : AffineSubspace ℝ P).direction.starProjection
+          (a.left -ᵥ s.center) := by
+    rw [a.right_eq_reflection,
+      reflection_apply_of_mem _ a.left (x := s.center)
+        (left_mem_affineSpan_pair ℝ s.center a.mid),
+      vadd_vsub, Submodule.reflection_apply]
+    abel
+  rw [hsum, ← hdir]
+  exact nsmul_mem (Submodule.starProjection_apply_mem _ _) 2
 
 /-- For any arc, the vector from `s.center` to `a.mid` is orthogonal to the
 chord `a.right -ᵥ a.left`. -/
@@ -476,7 +492,7 @@ theorem sbtw_mid_midpoint_opposite_mid [Fact (Module.finrank ℝ V = 2)]
           (neg_vsub_eq_vsub_rev _ _).symm,
       ham_sub, hopp_sub]
     module
-  have h_mid_not_mem := a.mid_notMem_line hne
+  have h_mid_not_mem := a.mid_notMem_line (a.mid_ne_left_of_left_ne_right hne)
   have h_omid_not_mem := a.opposite_mid_notMem_line hne
   obtain ⟨hδ_lo, hδ_hi⟩ := abs_lt.mp hδ_abs
   refine ⟨⟨(1 - δ) / 2, ⟨by linarith, by linarith⟩, ?_⟩, ?_, ?_⟩
@@ -493,7 +509,7 @@ theorem sOppSide_mid_opposite_mid [Fact (Module.finrank ℝ V = 2)]
   have hF_mem : midpoint ℝ a.left a.right ∈ line[ℝ, a.left, a.right] :=
     AffineMap.lineMap_mem_affineSpan_pair _ _ _
   exact ⟨(sbtw_mid_midpoint_opposite_mid a hne).wbtw.wOppSide₁₃ hF_mem,
-    a.mid_notMem_line hne, a.opposite_mid_notMem_line hne⟩
+    a.mid_notMem_line (a.mid_ne_left_of_left_ne_right hne), a.opposite_mid_notMem_line hne⟩
 
 /-- In two dimensions, an arc's anchor and the opposite arc's anchor are strictly opposite
 across the chord. -/
@@ -550,7 +566,7 @@ theorem sSameSide_opposite_mid_iff [Fact (Module.finrank ℝ V = 2)]
   obtain ⟨t, ⟨ht0, ht1⟩, htF⟩ := hsbtw.mem_image_Ioo
   have hF_mem : F ∈ line[ℝ, a.left, a.right] := by
     rw [hF_def]; exact AffineMap.lineMap_mem_affineSpan_pair _ _ _
-  have hmid_not_mem := a.mid_notMem_line hne
+  have hmid_not_mem := a.mid_notMem_line (a.mid_ne_left_of_left_ne_right hne)
   have homid_not_mem := a.opposite_mid_notMem_line hne
   have hSOpp := a.sOppSide_mid_opposite_mid_line hne
   have hmid_sub : (a.mid -ᵥ F : V) = (-t) • u := by
@@ -782,7 +798,10 @@ lemma throughMidpoint_mem {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ 
       by rw [← this, vsub_vadd]]
     exact smul_vsub_vadd_mem_affineSpan_pair _ A C
 
-/-- The arc on `s` from `A` to `C` passing through `B`. -/
+/-- The arc on `s` from `A` to `C` passing through `B`.
+
+The geometric reading, an arc from `A` through `B` to `C`, is established only in two
+dimensions (`through_right`); in higher dimensions the reflected endpoint need not equal `C`. -/
 def through {A B C : P} (hA : A ∈ s) (hB : B ∈ s) (hC : C ∈ s)
     (hBA : B ≠ A) (hBC : B ≠ C) : Arc s where
   left := A

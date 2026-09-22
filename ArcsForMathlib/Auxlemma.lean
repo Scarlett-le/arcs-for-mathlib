@@ -395,6 +395,15 @@ theorem radius_ne_zero_of_mem_of_mem_of_ne {s : Sphere P} {p q : P}
   exact (dist_eq_zero.mp ((mem_sphere.mp hp).trans hr)).trans
     (dist_eq_zero.mp ((mem_sphere.mp hq).trans hr)).symm
 
+/-- Two points on a sphere that are not diameter endpoints force a nonzero radius. -/
+theorem radius_ne_zero_of_not_isDiameter {s : Sphere P} {A C : P}
+    (hA : A ∈ s) (hC : C ∈ s) (hND : ¬s.IsDiameter A C) : s.radius ≠ 0 := by
+  intro hr
+  apply hND
+  refine ⟨hA, ?_⟩
+  rw [dist_eq_zero.mp ((mem_sphere.mp hA).trans hr),
+    dist_eq_zero.mp ((mem_sphere.mp hC).trans hr), midpoint_self]
+
 /-- A point of a sphere that differs from some other point of the sphere is not its center. -/
 lemma ne_center_of_mem_of_mem_of_ne {s : Sphere P} {p q : P}
     (hp : p ∈ s) (hq : q ∈ s) (hpq : p ≠ q) : p ≠ s.center := by

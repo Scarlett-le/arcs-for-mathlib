@@ -1017,12 +1017,12 @@ local instance : Module.Oriented ℝ V (Fin 2) :=
 omit [Fact (finrank ℝ V = 2)] in
 theorem M_mem_Γ₁ : cfg.M ∈ (cfg.Γ₁ : Set Pt) := by
   rw [cfg.M_eq]
-  exact Sphere.Arc.midpoint_mem cfg.arcPB cfg.arcPB_not_isDegenerate
+  exact Sphere.Arc.midpoint_mem cfg.arcPB
 
 omit [Fact (finrank ℝ V = 2)] in
 theorem N_mem_Γ₂ : cfg.N ∈ (cfg.Γ₂ : Set Pt) := by
   rw [cfg.N_eq]
-  exact Sphere.Arc.midpoint_mem cfg.arcQB cfg.arcQB_not_isDegenerate
+  exact Sphere.Arc.midpoint_mem cfg.arcQB
 
 omit [Fact (finrank ℝ V = 2)] in
 theorem affineIndependent_BCF : AffineIndependent ℝ ![cfg.B, cfg.C, cfg.F] :=
@@ -1034,12 +1034,12 @@ def triangleBCF : Triangle ℝ Pt := ⟨_, cfg.affineIndependent_BCF⟩
 omit [Fact (finrank ℝ V = 2)] in
 theorem M_mem_arcPB_interior : cfg.M ∈ cfg.arcPB.interior := by
   rw [cfg.M_eq]
-  exact Sphere.Arc.midpoint_mem_interior cfg.arcPB cfg.arcPB_not_isDegenerate
+  exact Sphere.Arc.midpoint_mem_interior cfg.arcPB (fun h => cfg.arcPB_not_isDegenerate (Or.inl h))
 
 omit [Fact (finrank ℝ V = 2)] in
 theorem N_mem_arcQB_interior : cfg.N ∈ cfg.arcQB.interior := by
   rw [cfg.N_eq]
-  exact Sphere.Arc.midpoint_mem_interior cfg.arcQB cfg.arcQB_not_isDegenerate
+  exact Sphere.Arc.midpoint_mem_interior cfg.arcQB (fun h => cfg.arcQB_not_isDegenerate (Or.inl h))
 
 theorem M_ne_C : cfg.M ≠ cfg.C :=
   Sphere.Arc.ne_of_mem_interior_of_mem_opposite_interior cfg.arcPB

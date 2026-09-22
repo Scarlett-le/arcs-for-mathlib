@@ -116,7 +116,7 @@ theorem arcBC_not_isDegenerate : ¬ cfg.arcBC.IsDegenerate := by
   exact cfg.B_ne_C
 
 theorem M_mem_Γ : cfg.M ∈ cfg.Γ :=
-  Sphere.Arc.midpoint_mem cfg.arcBC cfg.arcBC_not_isDegenerate
+  Sphere.Arc.midpoint_mem cfg.arcBC
 
 /-- `A` is not on the arc `BC` chosen to avoid `A`. -/
 theorem A_not_mem_arcBC : cfg.A ∉ cfg.arcBC :=
@@ -125,7 +125,7 @@ theorem A_not_mem_arcBC : cfg.A ∉ cfg.arcBC :=
 
 /-- `M` is the structural mid of `arcBC`. -/
 theorem M_eq_arcBC_mid : cfg.M = cfg.arcBC.mid :=
-  Sphere.Arc.midpoint_eq_mid cfg.arcBC cfg.arcBC_not_isDegenerate
+  Sphere.Arc.midpoint_eq_mid cfg.arcBC
 
 /-- `M` is not weakly on the same side of `BC` as `A`. -/
 theorem not_wSameSide_M_A : ¬ (line[ℝ, cfg.B, cfg.C]).WSameSide cfg.M cfg.A := by
@@ -143,7 +143,7 @@ of the chord joining the arc's endpoints. -/
 theorem dist_M_B_eq_dist_M_C : dist cfg.M cfg.B = dist cfg.M cfg.C := by
   -- ★ The one place the arc library does load-bearing work: an arc's midpoint lies on the
   --   perpendicular bisector of the chord joining its two endpoints.
-  have hmem := Sphere.Arc.midpoint_mem_perpBisector cfg.arcBC cfg.arcBC_not_isDegenerate
+  have hmem := Sphere.Arc.midpoint_mem_perpBisector cfg.arcBC
   rw [cfg.arcBC_left, cfg.arcBC_right] at hmem
   exact AffineSubspace.mem_perpBisector_iff_dist_eq.mp hmem
 
@@ -331,7 +331,7 @@ theorem collinear_A_incenter_M : Collinear ℝ ({cfg.A, cfg.incenter, cfg.M} : S
   have hsubeq : cfg.Γ.lineOrOrthRadius cfg.arcBC.left cfg.arcBC.right = line[ℝ, B, C] := by
     rw [show cfg.arcBC.left = B from rfl, cfg.arcBC_right, Sphere.lineOrOrthRadius_of_ne hBC]
   have hM_notline : M ∉ line[ℝ, B, C] := by
-    rw [← hsubeq]; exact cfg.arcBC.midpoint_notMem_lineOrOrthRadius hnd
+    rw [← hsubeq]; exact cfg.arcBC.midpoint_notMem_lineOrOrthRadius (fun h => hnd (Or.inl h))
   have hnotws : ¬ (line[ℝ, B, C]).WSameSide M A := by
     simpa only [A, B, C, M] using cfg.not_wSameSide_M_A
   -- `M, M', midpoint BC` are collinear (all inside the 1-dimensional perpendicular bisector)
@@ -407,11 +407,11 @@ theorem dist_M_B_eq_dist_M_incenter : dist cfg.M cfg.B = dist cfg.M cfg.incenter
   -- `M` is the structural mid of the arc, hence `≠ A, B, C`
   have hnd := cfg.arcBC_not_isDegenerate
   have harcright : cfg.arcBC.right = C := cfg.arcBC_right
-  have hMB : M ≠ B := cfg.arcBC.midpoint_ne_left hnd
-  have hMC : M ≠ C := by rw [← harcright]; exact cfg.arcBC.midpoint_ne_right hnd
+  have hMB : M ≠ B := cfg.arcBC.midpoint_ne_left (fun h => hnd (Or.inl h))
+  have hMC : M ≠ C := by rw [← harcright]; exact cfg.arcBC.midpoint_ne_right (fun h => hnd (Or.inl h))
   have hMA : M ≠ A := by
     intro h
-    have hMarc : M ∈ cfg.arcBC := cfg.arcBC.midpoint_mem_arc hnd
+    have hMarc : M ∈ cfg.arcBC := cfg.arcBC.midpoint_mem_arc
     rw [h] at hMarc; exact cfg.A_not_mem_arcBC hMarc
   -- `M ≠ I`: `I` lies on the same side of `BC` as `A`, but `M` (= arc mid) is not weakly on that
   -- side (since `A ∉ arcBC` while `A` is on the circle).

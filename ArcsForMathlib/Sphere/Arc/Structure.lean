@@ -246,7 +246,7 @@ theorem eq_of_left_eq_of_right_eq_of_coe_eq
     · rw [mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left a hlr hma,
         mid_eq_pointReflection_center_left_of_left_eq_right_of_mid_ne_left b
           (by rw [← hl, ← hr]; exact hlr) (hiff.not.mp hma), hl]
-  · have hmid : a.mid ∈ a.interior := mid_mem_interior a hlr
+  · have hmid : a.mid ∈ a.interior := mid_mem_interior a (a.mid_ne_left_of_left_ne_right hlr)
     refine eq_of_left_eq_of_right_eq_of_mem_interior_of_mem_interior hl hr hmid ?_
     exact mem_interior_of_mem_of_ne_left_of_ne_right
       (show a.mid ∈ (b : Set P) from

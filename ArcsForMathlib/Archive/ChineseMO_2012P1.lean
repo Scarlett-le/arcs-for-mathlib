@@ -268,6 +268,9 @@ theorem sSameSide_AB_of_cross {Z X : Pt} (hZ_notAB : Z ∉ line[ℝ, cfg.A, cfg.
 
 end DimensionFree
 
+/- The constructor `through` is dimension-independent; the geometric reading that identifies
+its right endpoint with `C` is supplied by the planar theorem `Sphere.Arc.through_right` below. -/
+
 section Plane
 
 variable [Fact (finrank ℝ V = 2)]
@@ -298,31 +301,31 @@ theorem arcACB_not_isDegenerate : ¬ cfg.arcACB.IsDegenerate := by
 
 theorem D_mem_ω' : cfg.D ∈ cfg.ω := by
   rw [cfg.D_eq]
-  exact Sphere.Arc.midpoint_mem cfg.arcABC cfg.arcABC_not_isDegenerate
+  exact Sphere.Arc.midpoint_mem cfg.arcABC
 
 theorem E_mem_ω' : cfg.E ∈ cfg.ω := by
   rw [cfg.E_eq]
-  exact Sphere.Arc.midpoint_mem cfg.arcACB cfg.arcACB_not_isDegenerate
+  exact Sphere.Arc.midpoint_mem cfg.arcACB
 
 theorem D_ne_A : cfg.D ≠ cfg.A := by
   rw [cfg.D_eq]
   simpa using
-    Sphere.Arc.midpoint_ne_left cfg.arcABC cfg.arcABC_not_isDegenerate
+    Sphere.Arc.midpoint_ne_left cfg.arcABC (fun h => cfg.arcABC_not_isDegenerate (Or.inl h))
 
 theorem D_ne_C : cfg.D ≠ cfg.C := by
   rw [cfg.D_eq]
   simpa using
-    Sphere.Arc.midpoint_ne_right cfg.arcABC cfg.arcABC_not_isDegenerate
+    Sphere.Arc.midpoint_ne_right cfg.arcABC (fun h => cfg.arcABC_not_isDegenerate (Or.inl h))
 
 theorem E_ne_A : cfg.E ≠ cfg.A := by
   rw [cfg.E_eq]
   simpa using
-    Sphere.Arc.midpoint_ne_left cfg.arcACB cfg.arcACB_not_isDegenerate
+    Sphere.Arc.midpoint_ne_left cfg.arcACB (fun h => cfg.arcACB_not_isDegenerate (Or.inl h))
 
 theorem E_ne_B : cfg.E ≠ cfg.B := by
   rw [cfg.E_eq]
   simpa using
-    Sphere.Arc.midpoint_ne_right cfg.arcACB cfg.arcACB_not_isDegenerate
+    Sphere.Arc.midpoint_ne_right cfg.arcACB (fun h => cfg.arcACB_not_isDegenerate (Or.inl h))
 
 theorem O₂_radius_ne_zero : cfg.O₂.radius ≠ 0 :=
   Sphere.radius_ne_zero_of_mem_of_mem_of_ne cfg.A_mem_O₂ cfg.E_mem_O₂ cfg.E_ne_A.symm
@@ -385,13 +388,13 @@ theorem P_ne_E : cfg.P ≠ cfg.E := by
 theorem E_not_mem_line_AB : cfg.E ∉ line[ℝ, cfg.A, cfg.B] := by
   rw [cfg.E_eq]
   simpa using
-    Sphere.Arc.midpoint_notMem_line cfg.arcACB cfg.arcACB_not_isDegenerate
+    Sphere.Arc.midpoint_notMem_line cfg.arcACB (fun h => cfg.arcACB_not_isDegenerate (Or.inl h))
 
 /-- The arc midpoint `D` is not on the chord line `AC`. -/
 theorem D_not_mem_line_AC : cfg.D ∉ line[ℝ, cfg.A, cfg.C] := by
   rw [cfg.D_eq]
   simpa using
-    Sphere.Arc.midpoint_notMem_line cfg.arcABC cfg.arcABC_not_isDegenerate
+    Sphere.Arc.midpoint_notMem_line cfg.arcABC (fun h => cfg.arcABC_not_isDegenerate (Or.inl h))
 
 /-- The vertex `C` is not on the tangent line `AD`. -/
 theorem C_not_mem_line_AD : cfg.C ∉ line[ℝ, cfg.A, cfg.D] := by
@@ -463,13 +466,13 @@ as in `ARC/IncenterArcMidpoint.lean`.
 
 /-- `D`, the midpoint of the arc from `A` to `C` through `B`, is equidistant from `A` and `C`. -/
 theorem dist_D_A_eq_dist_D_C : dist cfg.D cfg.A = dist cfg.D cfg.C := by
-  have hmem := Sphere.Arc.midpoint_mem_perpBisector cfg.arcABC cfg.arcABC_not_isDegenerate
+  have hmem := Sphere.Arc.midpoint_mem_perpBisector cfg.arcABC
   have hdist := AffineSubspace.mem_perpBisector_iff_dist_eq.mp hmem
   simpa [cfg.D_eq] using hdist
 
 /-- `E`, the midpoint of the arc from `A` to `B` through `C`, is equidistant from `A` and `B`. -/
 theorem dist_E_A_eq_dist_E_B : dist cfg.E cfg.A = dist cfg.E cfg.B := by
-  have hmem := Sphere.Arc.midpoint_mem_perpBisector cfg.arcACB cfg.arcACB_not_isDegenerate
+  have hmem := Sphere.Arc.midpoint_mem_perpBisector cfg.arcACB
   have hdist := AffineSubspace.mem_perpBisector_iff_dist_eq.mp hmem
   simpa [cfg.E_eq] using hdist
 
@@ -527,7 +530,7 @@ theorem C_mem_arcACB_interior : cfg.C ∈ cfg.arcACB.interior := by
 theorem E_mem_arcACB_interior : cfg.E ∈ cfg.arcACB.interior := by
   have hmem : cfg.E ∈ cfg.arcACB := by
     rw [cfg.E_eq]
-    exact Sphere.Arc.midpoint_mem_arc cfg.arcACB cfg.arcACB_not_isDegenerate
+    exact Sphere.Arc.midpoint_mem_arc cfg.arcACB
   refine Sphere.Arc.mem_interior_of_mem_of_ne_left_of_ne_right
     hmem ?_ ?_
   · simpa using cfg.E_ne_A
@@ -630,7 +633,7 @@ theorem B_mem_arcABC_interior : cfg.B ∈ cfg.arcABC.interior := by
 theorem D_mem_arcABC_interior : cfg.D ∈ cfg.arcABC.interior := by
   have hmem : cfg.D ∈ cfg.arcABC := by
     rw [cfg.D_eq]
-    exact Sphere.Arc.midpoint_mem_arc cfg.arcABC cfg.arcABC_not_isDegenerate
+    exact Sphere.Arc.midpoint_mem_arc cfg.arcABC
   refine Sphere.Arc.mem_interior_of_mem_of_ne_left_of_ne_right
     hmem ?_ ?_
   · simpa using cfg.D_ne_A
@@ -1421,8 +1424,13 @@ theorem angle_bisector_from_official_route :
         _ = ∠ cfg.C cfg.A cfg.P := hABP_CAP
 
 /-- The bundled form of the problem. -/
-theorem result_cfg : ∠ cfg.B cfg.A cfg.P = ∠ cfg.C cfg.A cfg.P :=
-  cfg.angle_bisector_from_official_route
+theorem result_cfg :
+    ∠ cfg.B cfg.A cfg.P = ∠ cfg.B cfg.A cfg.C / 2 ∧
+      ∠ cfg.C cfg.A cfg.P = ∠ cfg.B cfg.A cfg.C / 2 := by
+  have h1 := cfg.angle_bisector_from_official_route
+  have h2 := cfg.angle_BAP_add_PAC_eq_BAC
+  rw [angle_comm cfg.P cfg.A cfg.C] at h2
+  constructor <;> linarith
 
 end Plane
 
@@ -1463,7 +1471,8 @@ theorem result [Fact (finrank ℝ V = 2)]
     (P_mem_O₁ : P ∈ (O₁ : Set Pt))
     (P_mem_O₂ : P ∈ (O₂ : Set Pt))
     (P_ne_A : P ≠ A)
-    : ∠ B A P = ∠ C A P := by
+    : ∠ B A P = ∠ B A C / 2 ∧
+        ∠ C A P = ∠ B A C / 2 := by
   exact (Cfg.mk A B C D E P ω O₁ O₂ affineIndependent_ABC circumsphere_ABC_eq_ω
     angle_A_gt_B angle_A_gt_C A_mem_ω B_mem_ω C_mem_ω A_ne_B A_ne_C B_ne_C
     D_eq E_eq D_on_arc_BC E_on_arc_BC A_mem_O₁ B_mem_O₁ O₁_tangent_AC A_mem_O₂
