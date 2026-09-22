@@ -6,10 +6,14 @@
   now hold for every arc; measure bisection requires only nonzero radius, and strict positional
   properties require only `¬IsSinglePoint`.
 - Prove an unconditional endpoint-sum identity and use it for complementary measures,
-  constructor measures, chord length, and midpoint bisection. Complementary measures no longer
+  constructor measures, and midpoint bisection. Complementary measures no longer
   require dimension two.
-- Recover the anchor from non-diametral endpoints and branch data. Keep the angle-symmetry
+- Recover the anchor from the scalar bounds `measure < π` and `π < measure`, including
+  the zero-radius case in the former. Keep the angle-symmetry
   theorem in `Measure`, so the structural modules contain no angle statements.
+- Expose the scalar long-arc and central-angle criteria and named measure branches. Prove
+  chord length directly from the law of cosines, then derive its measure form. Remove two
+  unused chord-related wrappers.
 - Update the four case studies for the revised API and state the Chinese MO 2012 P1 conclusion
   as two half-angle equalities.
 

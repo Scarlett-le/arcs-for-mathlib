@@ -155,8 +155,9 @@ cases: a single point has measure `0`, a full circle has measure `2π`, and a ze
 measure `0`. `Arc.midpoint` is definitionally the structural anchor. Sphere membership, arc
 membership, and perpendicular-bisector membership hold for every arc. At nonzero radius the
 midpoint bisects the measure, including for single-point and full-circle arcs; strict positional
-properties require only `¬IsSinglePoint`. An endpoint-sum identity also gives complementary
-measures and chord-length formulae without a dimension hypothesis.
+properties require only `¬IsSinglePoint`. An endpoint-sum identity gives complementary
+measures without a dimension hypothesis. Chord-length formulae follow from the law of cosines
+and the scalar measure branches, also without a dimension hypothesis.
 
 ```lean
 theorem measure_add_measure_opposite (a : Arc s) (hr : s.radius ≠ 0) :

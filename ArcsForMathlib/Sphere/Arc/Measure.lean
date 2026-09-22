@@ -28,6 +28,12 @@ the inscribed angle theorem in two dimensions.
 * `EuclideanGeometry.Sphere.Arc.measure_minor`, `EuclideanGeometry.Sphere.Arc.measure_major`:
   for non-diametral endpoints, the minor arc has measure equal to the central angle, and the
   major arc has measure `2π` minus that angle.
+* `EuclideanGeometry.Sphere.Arc.sSameSide_iff_pi_lt_measure`: on a sphere of nonzero radius,
+  the anchor lies strictly on the center's side of the separating subspace exactly when the
+  measure exceeds `π`.
+* `EuclideanGeometry.Sphere.Arc.mid_eq_minorMidpoint`,
+  `EuclideanGeometry.Sphere.Arc.mid_eq_pointReflection_minorMidpoint`: below and above measure
+  `π`, the anchor is the normalized endpoint sum and its antipode, respectively.
 * `EuclideanGeometry.Sphere.Arc.sum_vsub_center_eq_two_mul_cos_half_measure_smul`: the sum
   of the endpoint radius vectors is `2 * Real.cos (a.measure / 2)` times the anchor radius vector.
 * `EuclideanGeometry.Sphere.Arc.dist_left_right_eq_two_mul_radius_mul_sin_measure`: the chord
@@ -75,6 +81,16 @@ def measure (a : Arc s) : ℝ :=
     2 * π - ∠ a.left s.center a.right
   else
     ∠ a.left s.center a.right
+
+/-- An arc on a sphere of radius zero has measure zero. -/
+theorem measure_eq_zero_of_radius_eq_zero (a : Arc s) (hr : s.radius = 0) :
+    a.measure = 0 := by rw [measure, if_pos hr]
+
+/-- When the anchor is strictly on the center's side, the measure is the reflex central angle. -/
+theorem measure_eq_two_pi_sub_angle_of_sSameSide (a : Arc s) (hr : s.radius ≠ 0)
+    (hss : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center) :
+    a.measure = 2 * π - ∠ a.left s.center a.right := by
+  rw [measure, if_neg hr, if_pos hss]
 
 /-- Arc measure is nonnegative. -/
 theorem measure_nonneg (a : Arc s) : 0 ≤ a.measure := by
@@ -137,7 +153,7 @@ theorem measure_eq_two_pi_of_isFullCircle (a : Arc s)
       hmid_not_L hcenter_not_L
     · rw [one_smul]
     · norm_num
-  rw [measure, if_neg hr, if_pos hSS, ← h_lr,
+  rw [a.measure_eq_two_pi_sub_angle_of_sSameSide hr hSS, ← h_lr,
       angle_self_of_ne h_left_ne_center]
   ring
 
@@ -195,7 +211,7 @@ theorem measure_eq_angle_iff_not_sSameSide (a : Arc s) (hr : s.radius ≠ 0) :
     exact hss.2.2 h_mem
   · rw [if_neg hnss]
 
-/-- On a sphere of nonzero radius, an arc with distinct endpoints has measure `π` if and only if
+/-- On a sphere of nonzero radius, an arc has measure `π` if and only if
 its endpoints are diametrically opposite. -/
 theorem measure_eq_pi_iff_isDiameter (a : Arc s) (hr : s.radius ≠ 0) :
     a.measure = π ↔ s.IsDiameter a.left a.right := by
@@ -215,28 +231,43 @@ theorem cos_half_measure_eq_zero_iff_isDiameter (a : Arc s) (hr : s.radius ≠ 0
     (show Real.cos (a.measure / 2) = Real.cos (π / 2) by rw [h, Real.cos_pi_div_two])
   linarith
 
-/-- On a sphere of nonzero radius, the anchor is strictly on the center's side of the chord
-exactly when the half-measure cosine is negative. -/
-theorem sSameSide_iff_cos_half_measure_neg (a : Arc s) (hr : s.radius ≠ 0) :
-    (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center ↔
-      Real.cos (a.measure / 2) < 0 := by
+/-- On a sphere of nonzero radius, the anchor is strictly on the center's side of the
+separating subspace exactly when the measure exceeds `π`. -/
+theorem sSameSide_iff_pi_lt_measure (a : Arc s) (hr : s.radius ≠ 0) :
+    (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center ↔ π < a.measure := by
   constructor
   · intro hss
     have hθ : ∠ a.left s.center a.right < π :=
       (angle_le_pi _ _ _).lt_of_ne fun hπ =>
         (measure_eq_angle_iff_not_sSameSide a hr).mp
-          (by rw [measure, if_neg hr, if_pos hss, hπ]; ring) hss
-    rw [measure, if_neg hr, if_pos hss,
-      show (2 * π - ∠ a.left s.center a.right) / 2 =
-        π - ∠ a.left s.center a.right / 2 by ring, Real.cos_pi_sub, neg_lt_zero]
-    exact Real.cos_pos_of_mem_Ioo
-      ⟨by linarith [Real.pi_pos, angle_nonneg a.left s.center a.right], by linarith⟩
+          (by rw [a.measure_eq_two_pi_sub_angle_of_sSameSide hr hss, hπ]; ring) hss
+    rw [a.measure_eq_two_pi_sub_angle_of_sSameSide hr hss]
+    linarith
   · intro h
     by_contra hss
     rw [(measure_eq_angle_iff_not_sSameSide a hr).mpr hss] at h
-    exact absurd h (not_lt.mpr (Real.cos_nonneg_of_mem_Icc
-      ⟨by linarith [Real.pi_pos, angle_nonneg a.left s.center a.right],
-        by linarith [angle_le_pi a.left s.center a.right]⟩))
+    exact (not_lt_of_ge (angle_le_pi _ _ _)) h
+
+/-- On a sphere of nonzero radius, the measure equals the central angle exactly when it is
+at most `π`. -/
+theorem measure_eq_angle_iff_le_pi (a : Arc s) (hr : s.radius ≠ 0) :
+    a.measure = ∠ a.left s.center a.right ↔ a.measure ≤ π := by
+  rw [a.measure_eq_angle_iff_not_sSameSide hr, a.sSameSide_iff_pi_lt_measure hr, not_lt]
+
+/-- On a sphere of nonzero radius, the anchor is strictly on the center's side of the chord
+exactly when the half-measure cosine is negative. -/
+theorem sSameSide_iff_cos_half_measure_neg (a : Arc s) (hr : s.radius ≠ 0) :
+    (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center ↔
+      Real.cos (a.measure / 2) < 0 := by
+  rw [a.sSameSide_iff_pi_lt_measure hr]
+  constructor
+  · intro h
+    exact Real.cos_neg_of_pi_div_two_lt_of_lt (by linarith)
+      (by linarith [a.measure_le_two_pi, Real.pi_pos])
+  · intro h
+    by_contra hle
+    exact (not_lt_of_ge (Real.cos_nonneg_of_mem_Icc
+      ⟨by linarith [a.measure_nonneg, Real.pi_pos], by linarith⟩)) h
 
 /-! ### Endpoint-sum identity -/
 
@@ -353,13 +384,14 @@ theorem sum_vsub_center_eq_two_mul_cos_half_measure_smul (a : Arc s) :
   suffices hk : k / 2 = Real.cos (a.measure / 2) by
     change v + w = _ • m
     rw [h_u_eq, show k = 2 * Real.cos (a.measure / 2) by linarith]
-  rw [measure, if_neg hr_ne]
-  split_ifs with hss
-  · rw [show (2 * π - ∠ a.left s.center a.right) / 2 =
+  by_cases hss : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center
+  · rw [a.measure_eq_two_pi_sub_angle_of_sSameSide hr_ne hss,
+      show (2 * π - ∠ a.left s.center a.right) / 2 =
       π - ∠ a.left s.center a.right / 2 from by ring,
       Real.cos_pi_sub, h_cos_half_AOC, abs_of_neg (hiff.mp hss)]
     ring
-  · rw [h_cos_half_AOC, abs_of_nonneg (not_lt.mp (fun hk => hss (hiff.mpr hk)))]
+  · rw [(a.measure_eq_angle_iff_not_sSameSide hr_ne).mpr hss,
+      h_cos_half_AOC, abs_of_nonneg (not_lt.mp (fun hk => hss (hiff.mpr hk)))]
 
 /-! ### Measure of opposite arcs -/
 
@@ -764,49 +796,33 @@ theorem angle_eq_measure_sub_angle_of_mem_through_interior [Fact (Module.finrank
 
 /-! ### Arcs and chords -/
 
-/-- The chord of an arc has length `2 * s.radius * Real.sin (a.measure / 2)`. -/
-theorem dist_left_right_eq_two_mul_radius_mul_sin_measure (a : Arc s) :
-    dist a.left a.right = 2 * s.radius * Real.sin (a.measure / 2) := by
-  have hsin : 0 ≤ Real.sin (a.measure / 2) :=
-    Real.sin_nonneg_of_nonneg_of_le_pi
-      (by linarith [a.measure_nonneg]) (by linarith [a.measure_le_two_pi])
-  have hr : 0 ≤ s.radius := radius_nonneg_of_mem a.left_mem
-  apply (sq_eq_sq₀ dist_nonneg (by positivity)).mp
-  rw [dist_eq_norm_vsub V,
-    show (a.left -ᵥ a.right : V) = (a.left -ᵥ s.center) - (a.right -ᵥ s.center) from
-      (vsub_sub_vsub_cancel_right _ _ _).symm,
-    @norm_sub_sq_real, norm_vsub_center_eq_radius a.left_mem,
-    norm_vsub_center_eq_radius a.right_mem]
-  have hinner : ⟪a.left -ᵥ s.center, a.right -ᵥ s.center⟫
-      = s.radius ^ 2 * (2 * Real.cos (a.measure / 2) ^ 2 - 1) := by
-    have hsq : ‖(a.left -ᵥ s.center) + (a.right -ᵥ s.center)‖ ^ 2
-        = 4 * s.radius ^ 2 * Real.cos (a.measure / 2) ^ 2 := by
-      rw [a.sum_vsub_center_eq_two_mul_cos_half_measure_smul, norm_smul, Real.norm_eq_abs,
-        norm_vsub_center_eq_radius a.mid_mem, mul_pow, sq_abs]; ring
-    rw [@norm_add_sq_real, norm_vsub_center_eq_radius a.left_mem,
-      norm_vsub_center_eq_radius a.right_mem] at hsq
-    nlinarith [hsq, Real.sin_sq_add_cos_sq (a.measure / 2)]
-  rw [hinner]
-  nlinarith [Real.sin_sq_add_cos_sq (a.measure / 2)]
-
 /-- The chord of an arc has length `2 * s.radius * Real.sin (∠ a.left s.center a.right / 2)`. -/
 theorem dist_left_right_eq_two_mul_radius_mul_sin (a : Arc s) :
     dist a.left a.right =
       2 * s.radius * Real.sin (∠ a.left s.center a.right / 2) := by
-  rw [dist_left_right_eq_two_mul_radius_mul_sin_measure a, measure]
-  split_ifs with hr hss
-  · simp [hr]
-  · rw [show (2 * π - ∠ a.left s.center a.right) / 2 =
-      π - ∠ a.left s.center a.right / 2 from by ring, Real.sin_pi_sub]
-  · rfl
+  have hr : 0 ≤ s.radius := radius_nonneg_of_mem a.left_mem
+  have hsin : 0 ≤ Real.sin (∠ a.left s.center a.right / 2) :=
+    Real.sin_nonneg_of_nonneg_of_le_pi
+      (by linarith [angle_nonneg a.left s.center a.right])
+      (by linarith [angle_le_pi a.left s.center a.right, Real.pi_pos])
+  apply (sq_eq_sq₀ dist_nonneg (by positivity)).mp
+  have hchord := law_cos a.left s.center a.right
+  rw [mem_sphere.mp a.left_mem, mem_sphere.mp a.right_mem] at hchord
+  have hcos := Real.cos_two_mul (∠ a.left s.center a.right / 2)
+  rw [show 2 * (∠ a.left s.center a.right / 2) = ∠ a.left s.center a.right by ring] at hcos
+  nlinarith [Real.sin_sq_add_cos_sq (∠ a.left s.center a.right / 2)]
 
-/-- On a minor arc, the chord length is `2 * s.radius * Real.sin (measure / 2)`. -/
-theorem dist_left_right_eq_two_mul_radius_mul_sin_measure_of_minor
-    {A C : P} (hA : A ∈ s) (hC : C ∈ s)
-    (hND : ¬s.IsDiameter A C) :
-    dist A C = 2 * s.radius * Real.sin ((minor hA hC hND).measure / 2) := by
-  simpa only [minor_left, minor_right] using
-    dist_left_right_eq_two_mul_radius_mul_sin_measure (minor hA hC hND)
+/-- The chord of an arc has length `2 * s.radius * Real.sin (a.measure / 2)`. -/
+theorem dist_left_right_eq_two_mul_radius_mul_sin_measure (a : Arc s) :
+    dist a.left a.right = 2 * s.radius * Real.sin (a.measure / 2) := by
+  rw [a.dist_left_right_eq_two_mul_radius_mul_sin]
+  by_cases hr : s.radius = 0
+  · simp [hr]
+  by_cases hss : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center
+  · rw [a.measure_eq_two_pi_sub_angle_of_sSameSide hr hss,
+      show (2 * π - ∠ a.left s.center a.right) / 2 =
+        π - ∠ a.left s.center a.right / 2 by ring, Real.sin_pi_sub]
+  · rw [(a.measure_eq_angle_iff_not_sSameSide hr).mpr hss]
 
 /-- Arcs of equal measure have equal chord length. -/
 theorem dist_eq_of_measure_eq {a b : Arc s} (h : a.measure = b.measure) :
@@ -822,9 +838,7 @@ theorem measure_eq_of_dist_eq_of_le_pi {a b : Arc s}
   rw [dist_left_right_eq_two_mul_radius_mul_sin_measure a,
       dist_left_right_eq_two_mul_radius_mul_sin_measure b] at h_dist
   by_cases hr : s.radius = 0
-  · have ha_zero : a.measure = 0 := by rw [measure, if_pos hr]
-    have hb_zero : b.measure = 0 := by rw [measure, if_pos hr]
-    rw [ha_zero, hb_zero]
+  · rw [a.measure_eq_zero_of_radius_eq_zero hr, b.measure_eq_zero_of_radius_eq_zero hr]
   · have hr_pos : 0 < s.radius := radius_pos_of_mem a.left_mem hr
     have h_two_r_ne : (2 * s.radius) ≠ 0 := by positivity
     have h_sin : Real.sin (a.measure / 2) = Real.sin (b.measure / 2) :=
@@ -853,35 +867,6 @@ theorem measure_minor_eq_iff_dist_eq {A B C D : P}
     · exact measure_minor_le_pi hA hB hND₁
     · exact measure_minor_le_pi hC hD hND₂
 
-/-- If a point on the sphere subtends equal central angles to the two endpoints, it lies on the
-perpendicular bisector of the chord. -/
-theorem mem_perpBisector_of_angle_center_eq {A M C : P}
-    (hA : A ∈ s) (hM : M ∈ s) (hC : C ∈ s)
-    (hMA : M ≠ A) (hAC : A ≠ C)
-    (h_bisect : ∠ A s.center M = ∠ M s.center C) :
-    M ∈ AffineSubspace.perpBisector A C := by
-  rw [AffineSubspace.mem_perpBisector_iff_dist_eq]
-  have hr : s.radius ≠ 0 := radius_ne_zero_of_mem_of_mem_of_ne hM hA hMA
-  have h_bisect' : ∠ M s.center A = ∠ M s.center C := by
-    rw [angle_comm M s.center A]; exact h_bisect
-  have h_not_diam_MA : ¬s.IsDiameter M A := fun h_diam_MA => by
-    have h_pi_MA : ∠ M s.center A = π :=
-      (angle_center_eq_pi_iff_isDiameter hM hA hr).mpr h_diam_MA
-    have h_pi_MC : ∠ M s.center C = π := h_bisect'.symm.trans h_pi_MA
-    have h_diam_MC : s.IsDiameter M C :=
-      (angle_center_eq_pi_iff_isDiameter hM hC hr).mp h_pi_MC
-    exact hAC (h_diam_MA.right_eq_of_isDiameter h_diam_MC)
-  have h_not_diam_MC : ¬s.IsDiameter M C := fun h_diam_MC => by
-    have h_pi_MC : ∠ M s.center C = π :=
-      (angle_center_eq_pi_iff_isDiameter hM hC hr).mpr h_diam_MC
-    have h_pi_MA : ∠ M s.center A = π := h_bisect'.trans h_pi_MC
-    have h_diam_MA : s.IsDiameter M A :=
-      (angle_center_eq_pi_iff_isDiameter hM hA hr).mp h_pi_MA
-    exact hAC (h_diam_MA.right_eq_of_isDiameter h_diam_MC)
-  rw [dist_left_right_eq_two_mul_radius_mul_sin_measure_of_minor hM hA h_not_diam_MA,
-      dist_left_right_eq_two_mul_radius_mul_sin_measure_of_minor hM hC h_not_diam_MC,
-      measure_minor hM hA h_not_diam_MA, measure_minor hM hC h_not_diam_MC, h_bisect']
-
 /-! ### The arc midpoint -/
 
 private theorem minorMidpoint_eq_sign_smul_mid (a : Arc s)
@@ -898,27 +883,30 @@ private theorem minorMidpoint_eq_sign_smul_mid (a : Arc s)
   rw [abs_mul, abs_of_pos (by norm_num : (0:ℝ) < 2)]
   field_simp
 
-/-- For a non-diametral arc whose anchor is not strictly on the center's side of the chord,
-the anchor is the normalized sum of the endpoint radius vectors. Includes single-point arcs. -/
-theorem mid_eq_minorMidpoint (a : Arc s)
-    (hND : ¬s.IsDiameter a.left a.right)
-    (hss : ¬(s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center) :
+/-- Below measure `π`, the anchor is the normalized endpoint sum, including at radius zero. -/
+theorem mid_eq_minorMidpoint (a : Arc s) (h : a.measure < π) :
     a.mid = minorMidpoint s a.left a.right := by
-  have hr := radius_ne_zero_of_not_isDiameter a.left_mem a.right_mem hND
+  by_cases hr : s.radius = 0
+  · have hm := dist_eq_zero.mp ((mem_sphere.mp a.mid_mem).trans hr)
+    simp [minorMidpoint, hr, hm]
+  have hND : ¬s.IsDiameter a.left a.right :=
+    fun hd => h.ne ((a.measure_eq_pi_iff_isDiameter hr).mpr hd)
   have hc : 0 < Real.cos (a.measure / 2) :=
-    lt_of_le_of_ne (not_lt.mp fun h => hss ((a.sSameSide_iff_cos_half_measure_neg hr).mpr h))
-      fun h => hND ((a.cos_half_measure_eq_zero_iff_isDiameter hr).mp h.symm)
+    Real.cos_pos_of_mem_Ioo ⟨by linarith [a.measure_nonneg, Real.pi_pos], by linarith⟩
   rw [minorMidpoint_eq_sign_smul_mid a hND, abs_of_pos hc, div_self hc.ne',
     one_smul, vsub_vadd]
 
-/-- For a non-diametral arc whose anchor is strictly on the center's side of the chord,
-the anchor is the antipode of the normalized endpoint sum. Includes full-circle arcs. -/
-theorem mid_eq_pointReflection_minorMidpoint (a : Arc s)
-    (hND : ¬s.IsDiameter a.left a.right)
-    (hss : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center) :
+/-- Above measure `π`, the anchor is the antipode of the normalized endpoint sum. -/
+theorem mid_eq_pointReflection_minorMidpoint (a : Arc s) (h : π < a.measure) :
     a.mid = AffineEquiv.pointReflection ℝ s.center (minorMidpoint s a.left a.right) := by
-  have hr := radius_ne_zero_of_not_isDiameter a.left_mem a.right_mem hND
-  have hc := (a.sSameSide_iff_cos_half_measure_neg hr).mp hss
+  have hr : s.radius ≠ 0 := by
+    intro hr
+    rw [a.measure_eq_zero_of_radius_eq_zero hr] at h
+    linarith [Real.pi_pos]
+  have hND : ¬s.IsDiameter a.left a.right :=
+    fun hd => h.ne' ((a.measure_eq_pi_iff_isDiameter hr).mpr hd)
+  have hc := (a.sSameSide_iff_cos_half_measure_neg hr).mp
+    ((a.sSameSide_iff_pi_lt_measure hr).mpr h)
   rw [minorMidpoint_eq_sign_smul_mid a hND, abs_of_neg hc, div_neg, div_self hc.ne,
     neg_one_smul, AffineEquiv.pointReflection_apply, ← neg_vsub_eq_vsub_rev,
     vadd_vsub, neg_neg, vsub_vadd]
@@ -962,7 +950,10 @@ theorem angle_center_mid_eq_angle_mid_center_right (a : Arc s) :
     ∠ a.left s.center a.mid = ∠ a.mid s.center a.right := by
   have h := a.inner_mid_vsub_center_right_vsub_left
   rw [← vsub_sub_vsub_cancel_right a.right a.left s.center, inner_sub_right, sub_eq_zero] at h
-  unfold EuclideanGeometry.angle InnerProductGeometry.angle
+  apply Real.injOn_cos ⟨angle_nonneg _ _ _, angle_le_pi _ _ _⟩
+    ⟨angle_nonneg _ _ _, angle_le_pi _ _ _⟩
+  change Real.cos (InnerProductGeometry.angle _ _) = Real.cos (InnerProductGeometry.angle _ _)
+  simp only [InnerProductGeometry.cos_angle]
   rw [norm_vsub_center_eq_radius a.left_mem, norm_vsub_center_eq_radius a.right_mem, h,
     real_inner_comm (a.left -ᵥ s.center) (a.mid -ᵥ s.center),
     mul_comm s.radius ‖a.mid -ᵥ s.center‖]
@@ -1169,11 +1160,10 @@ theorem inscribed_angle_eq_half_measure (a : Arc s)
     have := measure_le_two_pi a; linarith [Real.pi_pos]
   by_cases h_ss : L.SSameSide a.mid s.center
   · have h_measure : a.measure = 2 * π - θ := by
-      rw [measure, if_neg hr_ne]
       have h_ss' :
           (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center := by
         rw [hL_eq]; exact h_ss
-      rw [if_pos h_ss']
+      exact a.measure_eq_two_pi_sub_angle_of_sSameSide hr_ne h_ss'
     have h_opp_sopp_center : L.SOppSide a.opposite.mid s.center := by
       have h1 : L.SOppSide a.mid a.opposite.mid := by
         have := sOppSide_mid_opposite_mid a hLR
@@ -1242,11 +1232,10 @@ theorem inscribed_angle_eq_half_measure (a : Arc s)
         ⟨h_meas_half_nn, h_meas_half_le_pi⟩
         (by rw [h_cos_φ_eq, h_cos_meas])
   · have h_measure : a.measure = θ := by
-      rw [measure, if_neg hr_ne]
       have h_ss' :
           ¬ (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center := by
         rw [hL_eq]; exact h_ss
-      rw [if_neg h_ss']
+      exact (a.measure_eq_angle_iff_not_sSameSide hr_ne).mpr h_ss'
     by_cases h_center_in_L : s.center ∈ L
     · have h_diam : s.IsDiameter a.left a.right :=
         (Sphere.center_mem_affineSpan_pair_iff_isDiameter a.left_mem a.right_mem hLR).mp
@@ -1551,23 +1540,8 @@ theorem tangent_chord_angle_eq_pi_div_two_add_half_measure (a : Arc s)
   set θ : ℝ := ∠ a.left s.center a.right with hθ_def
   have hθ_nn : 0 ≤ θ := angle_nonneg _ _ _
   have hθ_le_pi : θ ≤ π := angle_le_pi _ _ _
-  have hL_eq : s.lineOrOrthRadius a.left a.right = line[ℝ, a.left, a.right] :=
-    lineOrOrthRadius_of_ne hne
-  have h_measure : a.measure = θ := by
-    by_cases hss : (s.lineOrOrthRadius a.left a.right).SSameSide a.mid s.center
-    · exfalso
-      have h_mes : a.measure = 2 * π - θ := by
-        rw [measure, if_neg hr_ne, if_pos hss]
-      rw [h_mes] at h_le
-      have hθ_eq_pi : θ = π := le_antisymm hθ_le_pi (by linarith)
-      have h_diam : s.IsDiameter a.left a.right :=
-        (angle_center_eq_pi_iff_isDiameter a.left_mem a.right_mem hr_ne).mp hθ_eq_pi
-      have h_center_in_chord : s.center ∈ line[ℝ, a.left, a.right] :=
-        (Sphere.center_mem_affineSpan_pair_iff_isDiameter a.left_mem a.right_mem hne).mpr h_diam
-      have h_center_in_LOR : s.center ∈ s.lineOrOrthRadius a.left a.right := by
-        rw [hL_eq]; exact h_center_in_chord
-      exact hss.2.2 h_center_in_LOR
-    · rw [measure, if_neg hr_ne, if_neg hss]
+  have h_measure : a.measure = θ :=
+    (a.measure_eq_angle_iff_le_pi hr_ne).mpr h_le
   have h_vw_inner : ⟪v, w⟫ = s.radius ^ 2 * Real.cos θ := by
     have h := InnerProductGeometry.cos_angle_mul_norm_mul_norm v w
     have h_ang : InnerProductGeometry.angle v w = θ := rfl
